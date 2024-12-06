@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: dispatcher
+
+  rabbitmq:
+    port: ${RABBITMQ_PORT}
+    host: ${RABBITMQ_HOST}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+
+bot:
+  token: ${BOT_TOKEN}
+  username: ${BOT_USERNAME}
+
+logging:
+  level:
+    ru.mkilord: debug
+
+
+
+
