@@ -62,13 +62,13 @@ public class UpdateController {
     private void processCallbackQuery(Update update) {
         var callbackQuery = update.getCallbackQuery();
         log.debug("processCallbackQuery: " + callbackQuery.getData());
-        producer.produce(RabbitQueue.CALLBACK_QUERY_UPDATE, update);
+        producer.produce(RabbitQueue.MESSAGE_UPDATE, update);
         telegramBot.answerCallbackQuery(callbackQuery.getId());
     }
 
     private void processTextMessage(Update update) {
         log.debug("Process text message: " + update.getMessage().getText());
-        producer.produce(RabbitQueue.TEXT_MESSAGE_UPDATE, update);
+        producer.produce(RabbitQueue.MESSAGE_UPDATE, update);
     }
 
     public void sendAnswerMessage(SendMessage sendMessage) {
