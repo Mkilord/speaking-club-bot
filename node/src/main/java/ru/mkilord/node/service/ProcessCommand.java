@@ -67,7 +67,6 @@ public class ProcessCommand {
                 .text("Выберите команду:")
                 .replyMarkup(keyboard)
                 .build();
-//        sendMsg(outMsg);
     }
 
     private void sendUserMenuWithRepliesButtons(long chatId) {

@@ -49,5 +49,4 @@ public class ConsumerServiceImpl implements ConsumerService {
 
         producerService.produceAnswer(outMsg);
     }
-    //Так ну, во-первых, нам нужны команды.
 }

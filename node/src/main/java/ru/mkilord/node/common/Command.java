@@ -14,5 +14,13 @@ import static lombok.AccessLevel.PRIVATE;
 @Getter
 public class Command {
     String name;
-    Consumer<Update> action;
+    Consumer<MessageContext> action;
+    Reply reply;
+
+    public void setReply(Reply reply) {
+        reply.setName(name + "reply");
+        this.reply = reply;
+    }
+
+
 }
