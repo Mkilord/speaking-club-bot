@@ -1,6 +1,9 @@
 spring:
   application:
     name: dispatcher
+  devtools:
+    restart:
+      enabled: false
 
   rabbitmq:
     port: ${RABBITMQ_PORT}
@@ -8,14 +11,9 @@ spring:
     username: ${RABBITMQ_USERNAME}
     password: ${RABBITMQ_PASSWORD}
 
+server:
+  port: ${DISPATCHER_PORT}
+
 bot:
   token: ${BOT_TOKEN}
   username: ${BOT_USERNAME}
-
-logging:
-  level:
-    ru.mkilord: debug
-
-
-
-

@@ -39,3 +39,6 @@ build/
 /.idea/misc.xml
 /.idea/.gitignore
 /secrets.env
+/.idea/vcs.xml
+/.idea/encodings.xml
+/logs/app.log

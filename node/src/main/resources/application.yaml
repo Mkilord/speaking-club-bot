@@ -1,3 +1,17 @@
 spring:
   application:
     name: node
+
+  rabbitmq:
+    port: ${RABBITMQ_PORT}
+    host: ${RABBITMQ_HOST}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+
+server:
+  port: ${NODE_PORT}
+
+#logging:
+#  level:
+#    ru.mkilord: debug
+#  config: classpath:log4j2.yaml

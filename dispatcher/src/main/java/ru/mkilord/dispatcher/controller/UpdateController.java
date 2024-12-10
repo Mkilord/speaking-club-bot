@@ -23,6 +23,7 @@ public class UpdateController {
     UpdateProducer producer;
 
     public void registerBot(TelegramBot telegramBot) {
+        log.debug("Register bot: " + telegramBot.getBotUsername());
         this.telegramBot = telegramBot;
     }
 
@@ -52,11 +53,14 @@ public class UpdateController {
     }
 
     private void processCallbackQuery(Update update) {
+        var user = update.getCallbackQuery().getFrom();
+        log.debug("processCallbackQuery: User: %s %s %s".formatted(user.getUserName(), user.getFirstName(), user.getLastName()));
         producer.produce(RabbitQueue.CALLBACK_QUERY_UPDATE, update);
         telegramBot.answerCallbackQuery(update.getCallbackQuery().getId());
     }
 
     private void processTextMessage(Update update) {
+        log.debug("Process text message: " + update.getMessage().getText());
         producer.produce(RabbitQueue.TEXT_MESSAGE_UPDATE, update);
     }
 }
