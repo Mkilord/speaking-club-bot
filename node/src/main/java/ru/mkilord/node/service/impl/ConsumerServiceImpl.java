@@ -6,7 +6,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import ru.mkilord.node.NodeTelegramBot;
+import ru.mkilord.node.service.NodeTelegramBot;
 import ru.mkilord.node.service.ConsumerService;
 import ru.mkilord.node.service.ProducerService;
 
@@ -32,12 +32,12 @@ public class ConsumerServiceImpl implements ConsumerService {
             chatId = update.getMessage().getChatId();
             text = update.getMessage().getText();
             log.debug("Received message with text: " + text);
-            telegramBot.onMessageReceived(update.getMessage());
+            telegramBot.onMessageReceived(update);
         } else if (update.hasCallbackQuery()) {
             chatId = update.getCallbackQuery().getMessage().getChatId();
             text = update.getCallbackQuery().getData();
             log.debug("Received message with button callback: " + text);
-            telegramBot.onCallbackQueryReceived(update.getCallbackQuery());
+            telegramBot.onCallbackQueryReceived(update);
         }
 
         if (chatId == 0) return;
