@@ -5,6 +5,7 @@ import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import ru.mkilord.dispatcher.service.UpdateProducer;
 import ru.mkilord.model.RabbitQueue;
@@ -12,6 +13,7 @@ import ru.mkilord.model.RabbitQueue;
 import java.util.Objects;
 
 import static lombok.AccessLevel.PRIVATE;
+import static org.telegram.telegrambots.meta.api.methods.send.SendMessage.builder;
 
 @Slf4j
 @Component
@@ -48,19 +50,28 @@ public class UpdateController {
             processTextMessage(update);
             return;
         }
-        var chatId = update.getMessage().getChatId();
-        telegramBot.sendMsg(chatId, "Не поддерживаемый тип сообщения!");
+        var outMsg = builder()
+                .chatId(update.getMessage().getChatId())
+                .text("Не поддерживаемый тип сообщения!")
+                .build();
+        log.error("Received unsupported message type " + update);
+
+        telegramBot.sendMsg(outMsg);
     }
 
     private void processCallbackQuery(Update update) {
-        var user = update.getCallbackQuery().getFrom();
-        log.debug("processCallbackQuery: User: %s %s %s".formatted(user.getUserName(), user.getFirstName(), user.getLastName()));
+        var callbackQuery = update.getCallbackQuery();
+        log.debug("processCallbackQuery: " + callbackQuery.getData());
         producer.produce(RabbitQueue.CALLBACK_QUERY_UPDATE, update);
-        telegramBot.answerCallbackQuery(update.getCallbackQuery().getId());
+        telegramBot.answerCallbackQuery(callbackQuery.getId());
     }
 
     private void processTextMessage(Update update) {
         log.debug("Process text message: " + update.getMessage().getText());
         producer.produce(RabbitQueue.TEXT_MESSAGE_UPDATE, update);
+    }
+
+    public void sendAnswerMessage(SendMessage sendMessage) {
+        telegramBot.sendMsg(sendMessage);
     }
 }

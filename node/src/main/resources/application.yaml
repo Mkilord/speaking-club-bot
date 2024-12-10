@@ -10,8 +10,3 @@ spring:
 
 server:
   port: ${NODE_PORT}
-
-#logging:
-#  level:
-#    ru.mkilord: debug
-#  config: classpath:log4j2.yaml

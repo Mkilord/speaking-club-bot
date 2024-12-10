@@ -28,6 +28,4 @@ public class BotConfig {
         botsApi.registerBot(bot);
         return botsApi;
     }
-
-
 }

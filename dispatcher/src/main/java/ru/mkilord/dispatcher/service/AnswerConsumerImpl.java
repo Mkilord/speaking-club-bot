@@ -1,16 +1,24 @@
 package ru.mkilord.dispatcher.service;
 
-import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import ru.mkilord.dispatcher.controller.UpdateController;
 
+import static lombok.AccessLevel.PRIVATE;
+import static ru.mkilord.model.RabbitQueue.ANSWER_MESSAGE;
+
+@Service
+@FieldDefaults(level = PRIVATE, makeFinal = true)
+@RequiredArgsConstructor
 public class AnswerConsumerImpl implements AnswerConsumer {
+    UpdateController updateController;
+
+    @RabbitListener(queues = ANSWER_MESSAGE)
     @Override
     public void consume(SendMessage sendMessage) {
-
-    }
-
-    @Override
-    public void consume(AnswerCallbackQuery answerCallbackQuery) {
-
+        updateController.sendAnswerMessage(sendMessage);
     }
 }
