@@ -7,10 +7,10 @@ import lombok.experimental.FieldDefaults;
 
 import java.util.function.Consumer;
 
-@Setter
 @Getter
+@Setter
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Reply {
-    String name;
     Consumer<MessageContext> action;
+    Reply nextReplay;
 }
