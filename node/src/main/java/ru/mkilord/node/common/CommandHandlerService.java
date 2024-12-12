@@ -59,23 +59,28 @@ public class CommandHandlerService {
         var replyId = context.getReplyId();
         var reply = replies.get(replyId);
         reply.getAction().accept(context);
-        reply.getNextReplay().ifPresentOrElse(reply1 -> context.setReplyId(reply1.getId()), () -> context.setReplyId(null));
+        reply.getNextReplay().ifPresentOrElse(reply1 -> context.setReplyId(reply1.getId()), () -> {
+            context.setReplyId(null);
+            context.clear();
+        });
         return true;
     }
 
-    private void processCommand(MessageContext context) {
-        commands.stream()
+    private boolean processCommand(MessageContext context) {
+        return commands.stream()
                 .filter(commandMatchesUpdate(context))
                 .findFirst()
-                .ifPresent(command -> {
+                .map(command -> {
                     command.getAction().accept(context);
                     context.setReplyId(command.getReply().getId());
-                });
+                    return true;
+                })
+                .orElse(false);
     }
 
-    public void process(Update update) {
+    public boolean process(Update update) {
         var context = getContext(update);
-        if (processReply(context)) return;
-        processCommand(context);
+        if (processReply(context)) return false;
+        return !processCommand(context);
     }
 }
