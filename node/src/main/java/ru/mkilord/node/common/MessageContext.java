@@ -6,6 +6,7 @@ import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -23,8 +24,10 @@ public class MessageContext {
     Map<String, String> values;
 
     public void put(String key, String value) {
+        if (values == null) values = new HashMap<>();
         values.put(key, value);
     }
+
     public String get(String key) {
         return values.get(key);
     }
