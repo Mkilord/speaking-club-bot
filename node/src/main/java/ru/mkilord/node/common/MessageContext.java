@@ -18,11 +18,22 @@ import static lombok.AccessLevel.PRIVATE;
 public class MessageContext {
     Update update;
     long chatId;
-    Reply reply;
+    String replyId;
 
     Map<String, String> values;
 
+    public void put(String key, String value) {
+        values.put(key, value);
+    }
+    public String get(String key) {
+        return values.get(key);
+    }
+
+    public void clear() {
+        values.clear();
+    }
+
     public boolean hasReply() {
-        return Objects.nonNull(reply);
+        return Objects.nonNull(replyId);
     }
 }

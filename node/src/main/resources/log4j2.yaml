@@ -20,7 +20,7 @@ Configuration:
           size: 5MB
   loggers:
     logger:
-      name: ru.mkilord.node.service
+      name: ru.mkilord.node
       level: DEBUG
       additivity: false
       AppenderRef:
