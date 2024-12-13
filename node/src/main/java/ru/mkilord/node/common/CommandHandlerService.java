@@ -7,9 +7,7 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 
 import java.util.ArrayList;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static lombok.AccessLevel.PRIVATE;
@@ -19,22 +17,18 @@ import static lombok.AccessLevel.PRIVATE;
 @Service
 public class CommandHandlerService {
 
-    //    List<Command> commands;
-    Map<String, Reply> replies;
+    Map<String, Reply> replyMap;
     Map<String, Command> commandMap;
+
     final ArrayList<MessageContext> contexts = new ArrayList<>();
 
     public void registerCommand(CommandRepository commandRepository) {
         var commands = commandRepository.getCommands();
         commandMap = commands.stream().collect(Collectors.toMap(Command::getName, command -> command));
-        replies = commands.stream()
+        replyMap = commands.stream()
                 .map(Command::extractReplies)
                 .flatMap(repliesMap -> repliesMap.entrySet().stream())
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (reply1, _) -> reply1));
-    }
-
-    private Predicate<Command> commandMatchesUpdate(MessageContext messageContext) {
-        return command -> Objects.equals(command.getName(), messageContext.getUpdate().getMessage().getText());
     }
 
     private MessageContext getContext(Update update) {
@@ -59,7 +53,7 @@ public class CommandHandlerService {
     private boolean processReply(MessageContext context) {
         if (!context.hasReply()) return false;
         var replyId = context.getReplyId();
-        var reply = replies.get(replyId);
+        var reply = replyMap.get(replyId);
         reply.getAction().accept(context);
         reply.getNextReplay().ifPresentOrElse(reply1 -> context.setReplyId(reply1.getId()), () -> {
             context.setReplyId(null);
