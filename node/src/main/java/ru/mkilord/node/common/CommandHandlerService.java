@@ -6,9 +6,9 @@ import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -19,15 +19,17 @@ import static lombok.AccessLevel.PRIVATE;
 @Service
 public class CommandHandlerService {
 
-    List<Command> commands;
+    //    List<Command> commands;
     Map<String, Reply> replies;
-
+    Map<String, Command> commandMap;
     final ArrayList<MessageContext> contexts = new ArrayList<>();
 
     public void registerCommand(CommandRepository commandRepository) {
-        this.commands = commandRepository.getCommands();
+        var commands = commandRepository.getCommands();
+        commandMap = commands.stream().collect(Collectors.toMap(Command::getName, command -> command));
         replies = commands.stream()
-                .flatMap(command -> command.extractReplies().entrySet().stream())
+                .map(Command::extractReplies)
+                .flatMap(repliesMap -> repliesMap.entrySet().stream())
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (reply1, _) -> reply1));
     }
 
@@ -67,10 +69,9 @@ public class CommandHandlerService {
     }
 
     private boolean processCommand(MessageContext context) {
-        return commands.stream()
-                .filter(commandMatchesUpdate(context))
-                .findFirst()
-                .map(command -> {
+        var message = context.getUpdate().getMessage().getText();
+        var commandOpt = Optional.ofNullable(commandMap.get(message));
+        return commandOpt.map(command -> {
                     command.getAction().accept(context);
                     context.setReplyId(command.getReply().getId());
                     return true;
