@@ -19,6 +19,7 @@ import static lombok.AccessLevel.PRIVATE;
 public class MessageContext {
     Update update;
     long chatId;
+
     String replyId;
 
     Map<String, String> values;
@@ -28,11 +29,16 @@ public class MessageContext {
         values.put(key, value);
     }
 
-    public String get(String key) {
+    public String getValues(String key) {
         return values.get(key);
     }
 
     public void clear() {
+        replyId = null;
+        values.clear();
+    }
+
+    public void clearValues() {
         values.clear();
     }
 

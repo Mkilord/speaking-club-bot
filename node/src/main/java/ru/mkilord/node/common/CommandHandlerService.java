@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -20,7 +20,7 @@ public class CommandHandlerService {
     Map<String, Reply> replyMap;
     Map<String, Command> commandMap;
 
-    final ArrayList<MessageContext> contexts = new ArrayList<>();
+    final Map<Long, MessageContext> contextMap = new HashMap<>();
 
     public void registerCommand(CommandRepository commandRepository) {
         var commands = commandRepository.getCommands();
@@ -32,9 +32,8 @@ public class CommandHandlerService {
     }
 
     private MessageContext getContext(Update update) {
-        return contexts.stream()
-                .filter(context -> update.getMessage().getChatId().equals(context.getChatId()))
-                .findFirst()
+        var chatId = update.getMessage().getChatId();
+        return Optional.ofNullable(contextMap.get(chatId))
                 .map(context -> {
                     context.setUpdate(update);
                     return context;
@@ -46,26 +45,27 @@ public class CommandHandlerService {
                 .chatId(update.getMessage().getChatId())
                 .update(update)
                 .build();
-        contexts.add(context);
+        contextMap.put(context.getChatId(), context);
         return context;
     }
 
     private boolean processReply(MessageContext context) {
         if (!context.hasReply()) return false;
         var replyId = context.getReplyId();
-        var reply = replyMap.get(replyId);
-        reply.getAction().accept(context);
-        reply.getNextReplay().ifPresentOrElse(reply1 -> context.setReplyId(reply1.getId()), () -> {
-            context.setReplyId(null);
-            context.clear();
-        });
-        return true;
+        return Optional.ofNullable(replyMap.get(replyId)).map((reply -> {
+            reply.getAction().accept(context);
+            reply.getNextReplay().ifPresentOrElse(nextReply -> context.setReplyId(nextReply.getId()), () -> {
+                context.setReplyId(null);
+                context.clearValues();
+            });
+            return true;
+        })).orElse(false);
     }
 
     private boolean processCommand(MessageContext context) {
         var message = context.getUpdate().getMessage().getText();
-        var commandOpt = Optional.ofNullable(commandMap.get(message));
-        return commandOpt.map(command -> {
+        return Optional.ofNullable(commandMap.get(message))
+                .map(command -> {
                     command.getAction().accept(context);
                     context.setReplyId(command.getReply().getId());
                     return true;
@@ -75,7 +75,7 @@ public class CommandHandlerService {
 
     public boolean process(Update update) {
         var context = getContext(update);
-        if (processReply(context)) return false;
-        return !processCommand(context);
+        if(processCommand(context)) return false;
+        return !processReply(context);
     }
 }
