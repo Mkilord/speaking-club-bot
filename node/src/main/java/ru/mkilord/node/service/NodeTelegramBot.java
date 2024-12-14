@@ -8,10 +8,7 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import ru.mkilord.node.TextUtils;
-import ru.mkilord.node.common.Command;
-import ru.mkilord.node.common.CommandHandlerService;
-import ru.mkilord.node.common.CommandRepository;
-import ru.mkilord.node.common.MessageContext;
+import ru.mkilord.node.common.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -78,6 +75,7 @@ public class NodeTelegramBot implements CommandRepository {
                 .build();
         var feedback = Command.create()
                 .name("/feedback")
+                .role(UserRole.ADMIN)
                 .action(context -> {
                     log.debug("Action command /feedback");
                     sendMessage(context, "Поиск опросов!");
@@ -85,25 +83,26 @@ public class NodeTelegramBot implements CommandRepository {
                     if (bool) {
                         sendMessage(context, "Введите оценку клуба немецкого от 0 до 10:");
                         return true;
-                    }else {
+                    } else {
                         sendMessage(context, "Доступные опросы не найдены!");
                     }
                     return bool;
                 }).reply(context -> {
                     log.debug("Action command /feedback reply" + context.getUpdate().getMessage().getText());
-                    var msg =context.getUpdate().getMessage().getText();
-                    if(TextUtils.isInRange(msg,0,10)){
-                    sendMessage(context, "Оценка записана!");
-                    log.debug("Wrong message!" + context.getUpdate().getMessage().getText());
-                    return true;
-                    }else {
+                    var msg = context.getUpdate().getMessage().getText();
+                    if (TextUtils.isInRange(msg, 0, 10)) {
+                        sendMessage(context, "Оценка записана!");
+                        log.debug("Wrong message!" + context.getUpdate().getMessage().getText());
+                        return true;
+                    } else {
                         sendMessage(context, "Введите число от 0 до 10!");
-                     return false;
+                        return false;
                     }
                 }).build();
         var end = Command.create()
                 .name("/end")
-                .action(_ -> {
+                .action(context -> {
+                    context.setRole(UserRole.ADMIN.get());
                     log.debug("Action command /end");
                     return true;
                 })

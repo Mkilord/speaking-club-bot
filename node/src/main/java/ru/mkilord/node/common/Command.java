@@ -6,8 +6,6 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static lombok.AccessLevel.PACKAGE;
@@ -21,6 +19,7 @@ public class Command {
     String name;
     Function<MessageContext, Boolean> action;
     Reply reply;
+    String role;
 
     public Map<String, Reply> extractReplies() {
         var replyMap = new HashMap<String, Reply>();
@@ -34,6 +33,24 @@ public class Command {
         reply.getNextReplay().ifPresent(nextReplay -> extractRepliesRecursive(nextReplay, replyMap));
     }
 
+    public boolean matchConditions(MessageContext context) {
+        var messageText = context.getUpdate().getMessage().getText();
+        var role = context.getRole();
+        var isCommandMatch = getName().equals(messageText);
+        return isCommandMatch && this.role.equals(role);
+    }
+
+    public boolean processAction(MessageContext context) {
+        var isContinue = getAction().apply(context);
+        if (isContinue) {
+            context.setReplyId(getReply().getId());
+        } else {
+            context.clear();
+        }
+        return true;
+    }
+
+
     public static Builder create() {
         return new Builder();
     }
@@ -44,9 +61,15 @@ public class Command {
         String name;
         Function<MessageContext, Boolean> action;
         final List<Reply> replyList = new ArrayList<>();
+        Role role = UserRole.USER;
 
         public Builder name(String name) {
             this.name = name;
+            return this;
+        }
+
+        public Builder role(Role role) {
+            this.role = role;
             return this;
         }
 
@@ -67,7 +90,7 @@ public class Command {
 
         public Command build() {
             if (replyList.isEmpty()) {
-                return new Command(name, action, null);
+                return new Command(name, action, null, role.get());
             }
             var currentReply = replyList.getFirst();
 
@@ -76,7 +99,7 @@ public class Command {
                 currentReply.setNextReplay(nextReply);
                 currentReply = nextReply;
             }
-            return new Command(name, action, replyList.getFirst());
+            return new Command(name, action, replyList.getFirst(), role.get());
         }
     }
 }

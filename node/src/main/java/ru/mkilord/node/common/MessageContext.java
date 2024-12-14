@@ -18,9 +18,10 @@ import static lombok.AccessLevel.PRIVATE;
 @Setter
 public class MessageContext {
     Update update;
-    long chatId;
 
+    long chatId;
     String replyId;
+    String role;
 
     Map<String, String> values;
 
@@ -35,11 +36,11 @@ public class MessageContext {
 
     public void clear() {
         replyId = null;
-        if (values != null) values.clear();
+        clearValues();
     }
 
     public void clearValues() {
-        values.clear();
+        if (Objects.nonNull(values)) values.clear();
     }
 
     public boolean hasReply() {

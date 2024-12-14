@@ -16,6 +16,14 @@ public class Reply {
     Function<MessageContext, Boolean> action;
     Reply nextReplay;
 
+    public boolean processAction(MessageContext context) {
+        var isContinue = getAction().apply(context);
+        if (isContinue) {
+            getNextReplay().ifPresentOrElse(nextReply -> context.setReplyId(nextReply.getId()), context::clear);
+        }
+        return true;
+    }
+
     public Optional<Reply> getNextReplay() {
         return Optional.ofNullable(nextReplay);
     }
