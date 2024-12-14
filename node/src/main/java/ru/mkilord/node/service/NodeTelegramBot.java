@@ -12,6 +12,7 @@ import ru.mkilord.node.common.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 
 import static lombok.AccessLevel.PRIVATE;
@@ -59,6 +60,7 @@ public class NodeTelegramBot implements CommandRepository {
     public List<Command> getCommands() {
         var start = Command.create()
                 .name("/start")
+                .info("Используйте чтобы начать.")
                 .action(context -> {
                     log.debug("Action command /start");
                     context.put("value", "start");
@@ -75,7 +77,8 @@ public class NodeTelegramBot implements CommandRepository {
                 .build();
         var feedback = Command.create()
                 .name("/feedback")
-                .role(UserRole.ADMIN)
+                .info("Чтобы пройти опрос.")
+                .access(UserRole.ADMIN)
                 .action(context -> {
                     log.debug("Action command /feedback");
                     sendMessage(context, "Поиск опросов!");
@@ -101,6 +104,7 @@ public class NodeTelegramBot implements CommandRepository {
                 }).build();
         var end = Command.create()
                 .name("/end")
+                .info("Чтобы апнуть права хахахах")
                 .action(context -> {
                     context.setRole(UserRole.ADMIN.get());
                     log.debug("Action command /end");
@@ -115,6 +119,25 @@ public class NodeTelegramBot implements CommandRepository {
                     return true;
                 })
                 .build();
-        return new ArrayList<>(List.of(start, end, feedback));
+        var simpleCommands = new ArrayList<>(List.of(start, end, feedback));
+
+        var help = Command.create()
+                .name("/help")
+                .action(context -> {
+                    var outMsg = new StringBuilder();
+                    simpleCommands.stream().filter(command ->
+                                    (command.getRole().equals(context.getRole()))
+                                    && Objects.nonNull(command.getInfo()))
+                            .forEach(command -> outMsg
+                                    .append(command.getName())
+                                    .append(" ")
+                                    .append(command.getInfo())
+                                    .append("\n"));
+                    sendMessage(context, outMsg.toString());
+                    return true;
+                })
+                .build();
+        simpleCommands.add(help);
+        return new ArrayList<>(simpleCommands);
     }
 }

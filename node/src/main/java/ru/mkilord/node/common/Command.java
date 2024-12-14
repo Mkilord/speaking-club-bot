@@ -18,8 +18,10 @@ import static lombok.AccessLevel.PRIVATE;
 public class Command {
     String name;
     Function<MessageContext, Boolean> action;
+
     Reply reply;
     String role;
+    String info;
 
     public Map<String, Reply> extractReplies() {
         var replyMap = new HashMap<String, Reply>();
@@ -43,10 +45,12 @@ public class Command {
     public boolean processAction(MessageContext context) {
         var isContinue = getAction().apply(context);
         if (isContinue) {
-            context.setReplyId(getReply().getId());
-        } else {
-            context.clear();
+            if (Objects.nonNull(reply)) {
+                context.setReplyId(getReply().getId());
+            }
+            return true;
         }
+        context.clear();
         return true;
     }
 
@@ -62,13 +66,14 @@ public class Command {
         Function<MessageContext, Boolean> action;
         final List<Reply> replyList = new ArrayList<>();
         Role role = UserRole.USER;
+        String info;
 
         public Builder name(String name) {
             this.name = name;
             return this;
         }
 
-        public Builder role(Role role) {
+        public Builder access(Role role) {
             this.role = role;
             return this;
         }
@@ -78,6 +83,10 @@ public class Command {
             return this;
         }
 
+        public Builder info(String info) {
+            this.info = info;
+            return this;
+        }
 
         public Builder reply(Function<MessageContext, Boolean> replyAction) {
             var reply = new Reply();
@@ -90,7 +99,7 @@ public class Command {
 
         public Command build() {
             if (replyList.isEmpty()) {
-                return new Command(name, action, null, role.get());
+                return new Command(name, action, null, role.get(), info);
             }
             var currentReply = replyList.getFirst();
 
@@ -99,7 +108,7 @@ public class Command {
                 currentReply.setNextReplay(nextReply);
                 currentReply = nextReply;
             }
-            return new Command(name, action, replyList.getFirst(), role.get());
+            return new Command(name, action, replyList.getFirst(), role.get(), info);
         }
     }
 }
