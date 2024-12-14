@@ -6,7 +6,9 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static lombok.AccessLevel.PACKAGE;
 import static lombok.AccessLevel.PRIVATE;
@@ -17,7 +19,7 @@ import static lombok.AccessLevel.PRIVATE;
 @AllArgsConstructor(access = PACKAGE)
 public class Command {
     String name;
-    Consumer<MessageContext> action;
+    Function<MessageContext, Boolean> action;
     Reply reply;
 
     public Map<String, Reply> extractReplies() {
@@ -40,7 +42,7 @@ public class Command {
     @Getter
     public static class Builder {
         String name;
-        Consumer<MessageContext> action;
+        Function<MessageContext, Boolean> action;
         final List<Reply> replyList = new ArrayList<>();
 
         public Builder name(String name) {
@@ -48,12 +50,13 @@ public class Command {
             return this;
         }
 
-        public Builder action(Consumer<MessageContext> action) {
+        public Builder action(Function<MessageContext, Boolean> action) {
             this.action = action;
             return this;
         }
 
-        public Builder withReply(Consumer<MessageContext> replyAction) {
+
+        public Builder reply(Function<MessageContext, Boolean> replyAction) {
             var reply = new Reply();
             reply.setAction(replyAction);
             reply.setId(name + replyList.size());

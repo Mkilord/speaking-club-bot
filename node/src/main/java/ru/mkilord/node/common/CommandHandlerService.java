@@ -53,11 +53,10 @@ public class CommandHandlerService {
         if (!context.hasReply()) return false;
         var replyId = context.getReplyId();
         return Optional.ofNullable(replyMap.get(replyId)).map((reply -> {
-            reply.getAction().accept(context);
-            reply.getNextReplay().ifPresentOrElse(nextReply -> context.setReplyId(nextReply.getId()), () -> {
-                context.setReplyId(null);
-                context.clearValues();
-            });
+            var isContinue = reply.getAction().apply(context);
+            if (isContinue) {
+                reply.getNextReplay().ifPresentOrElse(nextReply -> context.setReplyId(nextReply.getId()), context::clear);
+            }
             return true;
         })).orElse(false);
     }
@@ -66,8 +65,12 @@ public class CommandHandlerService {
         var message = context.getUpdate().getMessage().getText();
         return Optional.ofNullable(commandMap.get(message))
                 .map(command -> {
-                    command.getAction().accept(context);
-                    context.setReplyId(command.getReply().getId());
+                    var isContinue = command.getAction().apply(context);
+                    if (isContinue) {
+                        context.setReplyId(command.getReply().getId());
+                    } else {
+                        context.clear();
+                    }
                     return true;
                 })
                 .orElse(false);
@@ -75,7 +78,7 @@ public class CommandHandlerService {
 
     public boolean process(Update update) {
         var context = getContext(update);
-        if(processCommand(context)) return false;
+        if (processCommand(context)) return false;
         return !processReply(context);
     }
 }

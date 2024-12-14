@@ -6,14 +6,14 @@ import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 
 import java.util.Optional;
-import java.util.function.Consumer;
+import java.util.function.Function;
 
 @Getter
 @Setter
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Reply {
     String id;
-    Consumer<MessageContext> action;
+    Function<MessageContext, Boolean> action;
     Reply nextReplay;
 
     public Optional<Reply> getNextReplay() {

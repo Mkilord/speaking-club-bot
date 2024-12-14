@@ -7,12 +7,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import ru.mkilord.node.TextUtils;
 import ru.mkilord.node.common.Command;
 import ru.mkilord.node.common.CommandHandlerService;
 import ru.mkilord.node.common.CommandRepository;
+import ru.mkilord.node.common.MessageContext;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import static lombok.AccessLevel.PRIVATE;
 
@@ -49,6 +52,12 @@ public class NodeTelegramBot implements CommandRepository {
         producerService.produceAnswer(message);
     }
 
+    public void sendMessage(MessageContext context, String message) {
+        var outMsg = SendMessage.builder().chatId(context.getChatId()).text(message).build();
+        producerService.produceAnswer(outMsg);
+    }
+
+
     @Override
     public List<Command> getCommands() {
         var start = Command.create()
@@ -56,17 +65,57 @@ public class NodeTelegramBot implements CommandRepository {
                 .action(context -> {
                     log.debug("Action command /start");
                     context.put("value", "start");
+                    return true;
                 })
-                .withReply(_ -> log.debug("/start action reply 1"))
-                .withReply(_ -> log.debug("/start action reply 2"))
+                .reply(context -> {
+                    log.debug("/start action reply 1");
+                    return true;
+                })
+                .reply(_ -> {
+                    log.debug("/start action reply 2");
+                    return true;
+                })
                 .build();
-
+        var feedback = Command.create()
+                .name("/feedback")
+                .action(context -> {
+                    log.debug("Action command /feedback");
+                    sendMessage(context, "Поиск опросов!");
+                    var bool = new Random().nextBoolean();
+                    if (bool) {
+                        sendMessage(context, "Введите оценку клуба немецкого от 0 до 10:");
+                        return true;
+                    }else {
+                        sendMessage(context, "Доступные опросы не найдены!");
+                    }
+                    return bool;
+                }).reply(context -> {
+                    log.debug("Action command /feedback reply" + context.getUpdate().getMessage().getText());
+                    var msg =context.getUpdate().getMessage().getText();
+                    if(TextUtils.isInRange(msg,0,10)){
+                    sendMessage(context, "Оценка записана!");
+                    log.debug("Wrong message!" + context.getUpdate().getMessage().getText());
+                    return true;
+                    }else {
+                        sendMessage(context, "Введите число от 0 до 10!");
+                     return false;
+                    }
+                }).build();
         var end = Command.create()
                 .name("/end")
-                .action(context -> log.debug("Action command /end"))
-                .withReply(_ -> log.debug("/end action reply 1"))
-                .withReply(_ -> log.debug("/end action reply 2"))
+                .action(_ -> {
+                    log.debug("Action command /end");
+                    return true;
+                })
+                .reply(_ -> {
+                    log.debug("/end action reply 1");
+                    return true;
+                })
+                .reply(_ -> {
+                    log.debug("/end action reply 2");
+                    return true;
+                })
                 .build();
-        return new ArrayList<>(List.of(start, end));
+        return new ArrayList<>(List.of(start, end, feedback));
     }
 }

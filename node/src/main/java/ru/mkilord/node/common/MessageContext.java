@@ -35,7 +35,7 @@ public class MessageContext {
 
     public void clear() {
         replyId = null;
-        values.clear();
+        if (values != null) values.clear();
     }
 
     public void clearValues() {
