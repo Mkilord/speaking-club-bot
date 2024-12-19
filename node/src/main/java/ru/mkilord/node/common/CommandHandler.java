@@ -16,7 +16,7 @@ import static lombok.AccessLevel.PRIVATE;
 @Slf4j
 @Service
 @FieldDefaults(level = PRIVATE)
-public class CommandHandlerService {
+public class CommandHandler {
 
     Map<String, Reply> replyMap;
     List<Command> commandsList;
