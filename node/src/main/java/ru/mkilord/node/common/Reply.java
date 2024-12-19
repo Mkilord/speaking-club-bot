@@ -10,7 +10,6 @@ import java.util.Optional;
 import java.util.function.Function;
 
 @Getter
-//@Setter
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Reply {
@@ -24,9 +23,15 @@ public class Reply {
         if (nextStep == Step.NEXT) {
             getNextReplay().ifPresentOrElse(nextReply -> context.setCurrentReplyId(nextReply.getId()), context::clear);
             return true;
-        } else if (nextStep == Step.REPEAT) {
+        }
+        if (nextStep == Step.REPEAT) {
             return true;
-        } else return nextStep == Step.TERMINATE;
+        }
+        if (nextStep == Step.TERMINATE) {
+            context.clear();
+            return true;
+        }
+        return false;
     }
 
     public Optional<Reply> getNextReplay() {
