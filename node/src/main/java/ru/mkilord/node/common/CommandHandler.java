@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static lombok.AccessLevel.PRIVATE;
@@ -23,7 +24,10 @@ public class CommandHandler {
 
     final Map<Long, MessageContext> contextMap = new HashMap<>();
 
-    public void registerCommand(CommandRepository commandRepository) {
+    Consumer<MessageContext> unknownCommandCallback;
+
+    public void registerCommands(CommandRepository commandRepository, Consumer<MessageContext> unknownCommandCallback) {
+        this.unknownCommandCallback = unknownCommandCallback;
         commandsList = commandRepository.getCommands();
         replyMap = commandsList.stream()
                 .map(Command::extractReplies)
@@ -43,7 +47,7 @@ public class CommandHandler {
     private MessageContext createContext(Update update) {
         var context = MessageContext.builder()
                 .chatId(update.getMessage().getChatId())
-                .userRole(UserRole.USER.get())
+                .userRole(Role.USER.toString())
                 .update(update)
                 .build();
         contextMap.put(context.getChatId(), context);
@@ -64,9 +68,11 @@ public class CommandHandler {
                 .map(command -> command.processAction(context)).orElse(false);
     }
 
-    public boolean process(Update update) {
+    public void process(Update update) {
         var context = getContext(update);
-        if (processCommand(context)) return false;
-        return !processReply(context);
+        if (processCommand(context) || processReply(context)) {
+            return;
+        }
+        unknownCommandCallback.accept(context);
     }
 }

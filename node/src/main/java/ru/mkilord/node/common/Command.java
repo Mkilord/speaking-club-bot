@@ -25,6 +25,10 @@ public class Command {
     Set<String> roles;
     String info;
 
+    public Optional<Reply> getReply() {
+        return Optional.ofNullable(reply);
+    }
+
     public Map<String, Reply> extractReplies() {
         var replyMap = new HashMap<String, Reply>();
         extractRepliesRecursive(reply, replyMap);
@@ -47,9 +51,10 @@ public class Command {
     public boolean processAction(MessageContext context) {
         var nextStep = getAction().apply(context);
         if (nextStep == Step.NEXT) {
-            context.setCurrentReplyId(getReply().getId());
+            getReply().ifPresentOrElse(reply -> context.setCurrentReplyId(reply.getId()), context::clear);
             return true;
-        } else if (nextStep == Step.TERMINATE) {
+        }
+        if (nextStep == Step.TERMINATE) {
             context.clear();
             return true;
         }
@@ -67,20 +72,17 @@ public class Command {
         final String name;
         Function<MessageContext, Step> action;
         final List<Reply> replyList = new ArrayList<>();
-        Set<String> roles;
+        Set<String> roles = new HashSet<>();
         String info;
 
         public Builder(String name) {
             this.name = name;
+            roles.add(Role.USER.toString());
         }
-        //        public Builder name(String name) {
-//            this.name = name;
-//            return this;
-//        }
 
         public Builder access(Role... roles) {
             this.roles = Arrays.stream(roles)
-                    .map(Role::get)
+                    .map(Role::toString)
                     .collect(Collectors.toSet());
             return this;
         }
