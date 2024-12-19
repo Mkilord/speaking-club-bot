@@ -6,7 +6,9 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static lombok.AccessLevel.PACKAGE;
 import static lombok.AccessLevel.PRIVATE;
@@ -16,11 +18,11 @@ import static lombok.AccessLevel.PRIVATE;
 @Getter
 @AllArgsConstructor(access = PACKAGE)
 public class Command {
-    String name;
-    Function<MessageContext, Boolean> action;
 
+    String name;
+    Function<MessageContext, Step> action;
     Reply reply;
-    String role;
+    Set<String> roles;
     String info;
 
     public Map<String, Reply> extractReplies() {
@@ -37,49 +39,62 @@ public class Command {
 
     public boolean matchConditions(MessageContext context) {
         var messageText = context.getUpdate().getMessage().getText();
-        var role = context.getRole();
+        var role = context.getUserRole();
         var isCommandMatch = getName().equals(messageText);
-        return isCommandMatch && this.role.equals(role);
+        return isCommandMatch && roles.contains(role);
     }
 
     public boolean processAction(MessageContext context) {
-        var isContinue = getAction().apply(context);
-        if (isContinue) {
-            if (Objects.nonNull(reply)) {
-                context.setReplyId(getReply().getId());
-            }
+        var nextStep = getAction().apply(context);
+        if (nextStep == Step.NEXT) {
+            context.setCurrentReplyId(getReply().getId());
+            return true;
+        } else if (nextStep == Step.TERMINATE) {
+            context.clear();
             return true;
         }
-        context.clear();
-        return true;
+        return false;
     }
 
 
-    public static Builder create() {
-        return new Builder();
+    public static Builder create(String name) {
+        return new Builder(name);
     }
 
     @FieldDefaults(level = PRIVATE)
     @Getter
     public static class Builder {
-        String name;
-        Function<MessageContext, Boolean> action;
+        final String name;
+        Function<MessageContext, Step> action;
         final List<Reply> replyList = new ArrayList<>();
-        Role role = UserRole.USER;
+        Set<String> roles;
         String info;
 
-        public Builder name(String name) {
+        public Builder(String name) {
             this.name = name;
+        }
+        //        public Builder name(String name) {
+//            this.name = name;
+//            return this;
+//        }
+
+        public Builder access(Role... roles) {
+            this.roles = Arrays.stream(roles)
+                    .map(Role::get)
+                    .collect(Collectors.toSet());
             return this;
         }
 
-        public Builder access(Role role) {
-            this.role = role;
-            return this;
-        }
-
-        public Builder action(Function<MessageContext, Boolean> action) {
+        public Builder action(Function<MessageContext, Step> action) {
             this.action = action;
+            return this;
+        }
+
+        public Builder action(Consumer<MessageContext> action) {
+            this.action = context -> {
+                action.accept(context);
+                return Step.NEXT;
+            };
             return this;
         }
 
@@ -88,18 +103,30 @@ public class Command {
             return this;
         }
 
-        public Builder reply(Function<MessageContext, Boolean> replyAction) {
-            var reply = new Reply();
-            reply.setAction(replyAction);
-            reply.setId(name + replyList.size());
+        private void createReply(Function<MessageContext, Step> action) {
+            var reply = Reply.builder()
+                    .id(name + replyList.size()).action(action)
+                    .build();
             replyList.add(reply);
+        }
+
+        public Builder reply(Function<MessageContext, Step> replyAction) {
+            createReply(replyAction);
+            return this;
+        }
+
+        public Builder reply(Consumer<MessageContext> replyAction) {
+            createReply(context -> {
+                replyAction.accept(context);
+                return Step.NEXT;
+            });
             return this;
         }
 
 
         public Command build() {
             if (replyList.isEmpty()) {
-                return new Command(name, action, null, role.get(), info);
+                return new Command(name, action, null, roles, info);
             }
             var currentReply = replyList.getFirst();
 
@@ -108,7 +135,7 @@ public class Command {
                 currentReply.setNextReplay(nextReply);
                 currentReply = nextReply;
             }
-            return new Command(name, action, replyList.getFirst(), role.get(), info);
+            return new Command(name, action, replyList.getFirst(), roles, info);
         }
     }
 }

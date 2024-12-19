@@ -16,6 +16,7 @@ import java.util.Objects;
 import java.util.Random;
 
 import static lombok.AccessLevel.PRIVATE;
+import static ru.mkilord.node.common.Step.*;
 
 
 @FieldDefaults(level = PRIVATE, makeFinal = true)
@@ -55,88 +56,130 @@ public class NodeTelegramBot implements CommandRepository {
         producerService.produceAnswer(outMsg);
     }
 
-
     @Override
     public List<Command> getCommands() {
-        var start = Command.create()
-                .name("/start")
+        var register = Command.create("/register")
+                .info("Используйте чтобы зарегистрироваться")
+                .action(context -> {
+                    sendMessage(context, "Привет! Давай познакомимся!");
+                    sendMessage(context, "Введите имя");
+                })
+                .reply(context -> {
+                    var msg = context.getMessageText();
+                    if (msg.isBlank()) {
+                        sendMessage(context, "Введите, имя размером больше чем 1 символ.");
+                        return REPEAT;
+                    }
+                    context.put("name", msg);
+                    sendMessage(context, "Введите фамилию");
+                    return NEXT;
+                })
+                .reply(context -> {
+                    var msg = context.getMessageText();
+                    if (msg.isBlank()) {
+                        sendMessage(context, "Введите, фамилию размером больше чем 1 символ.");
+                        return REPEAT;
+                    }
+                    context.put("surname", msg);
+                    sendMessage(context, "Введите номер телефона");
+                    return NEXT;
+                })
+                .reply(context -> {
+                    var msg = context.getMessageText();
+                    if (!TextUtils.isProneNumber(msg)) {
+                        sendMessage(context, "Введите, телефон в формате: \"79106790783\"");
+                        return REPEAT;
+                    }
+                    context.put("phone", msg);
+                    sendMessage(context, "Введите email");
+                    return NEXT;
+                })
+                .reply(context -> {
+                    var email = context.getMessageText();
+                    var name = context.getValue("name");
+                    var surname = context.getValue("surname");
+                    var phone = context.getValue("phone");
+
+                    sendMessage(context, "ФИ: %s %s; Тел: %s; Email: %s".formatted(name, surname, phone, email));
+
+                    return TERMINATE;
+                }).build();
+        var start = Command.create("/start")
                 .info("Используйте чтобы начать.")
                 .action(context -> {
                     log.debug("Action command /start");
                     context.put("value", "start");
-                    return true;
+                    return NEXT;
                 })
                 .reply(context -> {
                     log.debug("/start action reply 1");
-                    return true;
+                    return NEXT;
                 })
                 .reply(_ -> {
                     log.debug("/start action reply 2");
-                    return true;
-                })
-                .build();
-        var feedback = Command.create()
-                .name("/feedback")
+                    return NEXT;
+                }).build();
+        var feedback = Command.create("/feedback")
                 .info("Чтобы пройти опрос.")
                 .access(UserRole.ADMIN)
                 .action(context -> {
                     log.debug("Action command /feedback");
                     sendMessage(context, "Поиск опросов!");
-                    var bool = new Random().nextBoolean();
-                    if (bool) {
+                    var isOk = new Random().nextBoolean();
+                    if (isOk) {
                         sendMessage(context, "Введите оценку клуба немецкого от 0 до 10:");
-                        return true;
-                    } else {
-                        sendMessage(context, "Доступные опросы не найдены!");
+                        return NEXT;
                     }
-                    return bool;
+                    sendMessage(context, "Доступные опросы не найдены!");
+                    return TERMINATE;
                 }).reply(context -> {
                     log.debug("Action command /feedback reply" + context.getUpdate().getMessage().getText());
                     var msg = context.getUpdate().getMessage().getText();
-                    if (TextUtils.isInRange(msg, 0, 10)) {
+                    if (TextUtils.isRange(msg, 0, 10)) {
                         sendMessage(context, "Оценка записана!");
                         log.debug("Wrong message!" + context.getUpdate().getMessage().getText());
-                        return true;
-                    } else {
-                        sendMessage(context, "Введите число от 0 до 10!");
-                        return false;
+                        return NEXT;
                     }
+                    sendMessage(context, "Введите число от 0 до 10!");
+                    return REPEAT;
                 }).build();
-        var end = Command.create()
-                .name("/end")
+        var end = Command.create("/end")
                 .info("Чтобы апнуть права хахахах")
                 .action(context -> {
-                    context.setRole(UserRole.ADMIN.get());
+                    context.setUserRole(UserRole.ADMIN.get());
                     log.debug("Action command /end");
-                    return true;
+                    return NEXT;
                 })
                 .reply(_ -> {
                     log.debug("/end action reply 1");
-                    return true;
+                    return NEXT;
                 })
                 .reply(_ -> {
                     log.debug("/end action reply 2");
-                    return true;
-                })
-                .build();
-        var simpleCommands = new ArrayList<>(List.of(start, end, feedback));
+                    return NEXT;
+                }).build();
+        var simpleCommands = new ArrayList<>(List.of(register, start, end, feedback));
 
-        var help = Command.create()
-                .name("/help")
+
+        var help = Command.create("/help")
                 .action(context -> {
-                    var outMsg = new StringBuilder();
-                    simpleCommands.stream().filter(command ->
-                                    (command.getRole().equals(context.getRole()))
-                                    && Objects.nonNull(command.getInfo()))
-                            .forEach(command -> outMsg
+                    var strBuilder = new StringBuilder();
+                    simpleCommands.stream()
+                            .filter(command ->
+                                    (command.getRoles().contains(context.getUserRole()))
+                                            && Objects.nonNull(command.getInfo()))
+                            .forEach(command -> strBuilder
                                     .append(command.getName())
-                                    .append(" ")
+                                    .append(" - ")
                                     .append(command.getInfo())
                                     .append("\n"));
-                    sendMessage(context, outMsg.toString());
-                    return true;
-                })
-                .build();
+                    var outMsg = strBuilder.toString();
+                    if (outMsg.isEmpty()) {
+                        outMsg = "Для вас нет доступных команд!";
+                    }
+                    sendMessage(context, outMsg);
+                    return TERMINATE;
+                }).build();
         simpleCommands.add(help);
         return new ArrayList<>(simpleCommands);
     }

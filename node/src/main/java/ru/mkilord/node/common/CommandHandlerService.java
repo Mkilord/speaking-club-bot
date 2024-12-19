@@ -14,8 +14,8 @@ import java.util.stream.Collectors;
 import static lombok.AccessLevel.PRIVATE;
 
 @Slf4j
-@FieldDefaults(level = PRIVATE)
 @Service
+@FieldDefaults(level = PRIVATE)
 public class CommandHandlerService {
 
     Map<String, Reply> replyMap;
@@ -43,7 +43,7 @@ public class CommandHandlerService {
     private MessageContext createContext(Update update) {
         var context = MessageContext.builder()
                 .chatId(update.getMessage().getChatId())
-                .role(UserRole.USER.get())
+                .userRole(UserRole.USER.get())
                 .update(update)
                 .build();
         contextMap.put(context.getChatId(), context);
@@ -52,7 +52,7 @@ public class CommandHandlerService {
 
     private boolean processReply(MessageContext context) {
         if (!context.hasReply()) return false;
-        return Optional.ofNullable(replyMap.get(context.getReplyId()))
+        return Optional.ofNullable(replyMap.get(context.getCurrentReplyId()))
                 .map(reply -> reply.processAction(context))
                 .orElse(false);
     }

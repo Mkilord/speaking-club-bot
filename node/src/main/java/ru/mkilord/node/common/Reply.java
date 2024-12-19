@@ -1,6 +1,7 @@
 package ru.mkilord.node.common;
 
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.FieldDefaults;
@@ -9,19 +10,23 @@ import java.util.Optional;
 import java.util.function.Function;
 
 @Getter
-@Setter
+//@Setter
+@Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Reply {
     String id;
-    Function<MessageContext, Boolean> action;
+    Function<MessageContext, Step> action;
+    @Setter
     Reply nextReplay;
 
     public boolean processAction(MessageContext context) {
-        var isContinue = getAction().apply(context);
-        if (isContinue) {
-            getNextReplay().ifPresentOrElse(nextReply -> context.setReplyId(nextReply.getId()), context::clear);
-        }
-        return true;
+        var nextStep = getAction().apply(context);
+        if (nextStep == Step.NEXT) {
+            getNextReplay().ifPresentOrElse(nextReply -> context.setCurrentReplyId(nextReply.getId()), context::clear);
+            return true;
+        } else if (nextStep == Step.REPEAT) {
+            return true;
+        } else return nextStep == Step.TERMINATE;
     }
 
     public Optional<Reply> getNextReplay() {

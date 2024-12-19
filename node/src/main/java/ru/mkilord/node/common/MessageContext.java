@@ -20,30 +20,31 @@ public class MessageContext {
     Update update;
 
     long chatId;
-    String replyId;
-    String role;
+    String userRole;
+
+    String currentReplyId;
 
     Map<String, String> values;
+
+    public String getMessageText() {
+        return update.getMessage().getText();
+    }
 
     public void put(String key, String value) {
         if (values == null) values = new HashMap<>();
         values.put(key, value);
     }
 
-    public String getValues(String key) {
+    public String getValue(String key) {
         return values.get(key);
     }
 
     public void clear() {
-        replyId = null;
-        clearValues();
-    }
-
-    public void clearValues() {
+        currentReplyId = null;
         if (Objects.nonNull(values)) values.clear();
     }
 
     public boolean hasReply() {
-        return Objects.nonNull(replyId);
+        return Objects.nonNull(currentReplyId);
     }
 }
