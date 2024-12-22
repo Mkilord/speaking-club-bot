@@ -54,7 +54,7 @@ public class CommandHandler {
 
     private MessageContext createContext(Update update) {
         var context = MessageContext.builder()
-                .chatId(update.getMessage().getChatId())
+                .chatId(getChatId(update))
                 .userRole(Role.USER.toString())
                 .update(update)
                 .build();

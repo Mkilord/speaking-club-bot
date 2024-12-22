@@ -8,11 +8,15 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import ru.mkilord.node.TextUtils;
 import ru.mkilord.node.common.command.*;
+import ru.mkilord.node.common.menu.Item;
+import ru.mkilord.node.common.menu.Menu;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Random;
 
 import static lombok.AccessLevel.PRIVATE;
 import static ru.mkilord.node.common.command.Step.*;
@@ -45,11 +49,6 @@ public class NodeTelegramBot implements CommandRepository {
 
     public void send(MessageContext context, String message) {
         var outMsg = SendMessage.builder().chatId(context.getChatId()).text(message).build();
-        producerService.produceAnswer(outMsg);
-    }
-
-    public void send(MessageContext context, InlineKeyboardMarkup keyboardMarkup) {
-        var outMsg = SendMessage.builder().chatId(context.getChatId()).replyMarkup(keyboardMarkup).build();
         producerService.produceAnswer(outMsg);
     }
 
@@ -240,28 +239,45 @@ public class NodeTelegramBot implements CommandRepository {
 
         addCommands(commands, profile, end);
 
+        Menu menu = Menu.builder()
+                .items()
+                .build();
 
         addCommands(commands, Command.create("/clubs")
                 .access(Role.USER)
                 .action(context -> {
-                    // TODO 2024-12-22 14:33: Лучше использовать uuid.
                     var list = new ArrayList<>(List.of("Немецкий", "Русский", "Английский"));
-                    var buttons = list.stream().map(string -> {
-                        var button = new InlineKeyboardButton(string);
-                        button.setCallbackData(string);
-                        button.setText(string);
-                        return button;
-                    }).toList();
-                    var wrappedList = buttons.stream()
-                            .map(Arrays::asList)
-                            .toList();
-                    var keyboard = InlineKeyboardMarkup.builder().keyboard(wrappedList).build();
-                    send(context, "Выберите клуб", keyboard);
+                    var items = list.stream().map(string -> new Item(string, string)).toList();
+                    var menu = Menu.builder()
+                            .items(items)
+                            .build();
+                    send(context, "Выберите клуб", menu.getKeyboardMarkup());
                 }).input(context -> {
+                    var items = Item.of(
+                            new Item("1", "Встречи"),
+                            new Item("2", "Подписаться"),
+                            new Item("3", "О клубе"));
+                    var menu = Menu.builder().items(items).build();
                     var club = context.getText();
-                    send(context, "Вы выбрали клуб: " + club);
 
+                    send(context, "Вы выбрали клуб: " + club);
+                    send(context, club + " клуб:",menu.getKeyboardMarkup());
+
+                    context.put("club", club);
                     return NEXT;
+                }).input(context -> {
+                    String userInput = context.getText();
+                    return switch (userInput) {
+                        case "1" -> {
+                            send(context, "Подписка оформлена!");
+                            yield TERMINATE;
+                        }
+                        case "2" -> {
+                            send(context, "Информация о клубе: " + context.getValue("club"));
+                            yield TERMINATE;
+                        }
+                        default -> TERMINATE;
+                    };
                 })
                 .build());
 

@@ -18,16 +18,20 @@ import static lombok.AccessLevel.PRIVATE;
 public class Menu {
     InlineKeyboardMarkup keyboardMarkup;
 
-    @FieldDefaults(level = PRIVATE, makeFinal = true)
-    public static class Builder {
-        List<Item> items = new ArrayList<>();
+    public static Builder builder() {
+        return new Builder();
+    }
 
-        public Builder addButton(Item item) {
+    @FieldDefaults(level = PRIVATE)
+    public static class Builder {
+        final List<Item> items = new ArrayList<>();
+
+        public Builder items(Item item) {
             items.add(item);
             return this;
         }
 
-        public Builder addButtons(List<Item> buttons) {
+        public Builder items(List<Item> buttons) {
             this.items.addAll(buttons);
             return this;
         }
