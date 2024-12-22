@@ -1,4 +1,4 @@
-package ru.mkilord.node.common;
+package ru.mkilord.node.common.command;
 
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
@@ -35,13 +35,21 @@ public class CommandHandler {
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (reply1, _) -> reply1));
     }
 
+    private Long getChatId(Update update) {
+        if (update.hasCallbackQuery()) {
+            return update.getCallbackQuery().getMessage().getChatId();
+        }
+        return update.getMessage().getChatId();
+    }
+
     private MessageContext getContext(Update update) {
-        var chatId = update.getMessage().getChatId();
+        var chatId = getChatId(update);
         return Optional.ofNullable(contextMap.get(chatId))
                 .map(context -> {
-                    context.setUpdate(update);
-                    return context;
-                }).orElseGet(() -> createContext(update));
+                    context.setChatId(chatId);
+                    return context.setUpdate(update);
+                })
+                .orElseGet(() -> createContext(update));
     }
 
     private MessageContext createContext(Update update) {
@@ -56,7 +64,7 @@ public class CommandHandler {
 
     private boolean processReply(MessageContext context) {
         if (!context.hasReply()) return false;
-        return Optional.ofNullable(replyMap.get(context.getCurrentReplyId()))
+        return Optional.ofNullable(replyMap.get(context.getReplyId()))
                 .map(reply -> reply.processAction(context))
                 .orElse(false);
     }

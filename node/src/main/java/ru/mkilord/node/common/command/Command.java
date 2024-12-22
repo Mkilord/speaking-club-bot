@@ -1,4 +1,4 @@
-package ru.mkilord.node.common;
+package ru.mkilord.node.common.command;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -10,13 +10,12 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static lombok.AccessLevel.PACKAGE;
 import static lombok.AccessLevel.PRIVATE;
 
 @Slf4j
 @FieldDefaults(level = PRIVATE)
 @Getter
-@AllArgsConstructor(access = PACKAGE)
+@AllArgsConstructor(access = PRIVATE)
 public class Command {
 
     String name;
@@ -29,33 +28,57 @@ public class Command {
         return Optional.ofNullable(reply);
     }
 
+    public Optional<Function<MessageContext, Step>> getNextStep() {
+        return Optional.ofNullable(action);
+    }
+
     public Map<String, Reply> extractReplies() {
         var replyMap = new HashMap<String, Reply>();
         extractRepliesRecursive(reply, replyMap);
         return replyMap;
     }
 
-    private void extractRepliesRecursive(Reply reply, Map<String, Reply> replyMap) {
+    private static void extractRepliesRecursive(Reply reply, Map<String, Reply> replyMap) {
         if (Objects.isNull(reply)) return;
         replyMap.put(reply.getId(), reply);
         reply.getNextReplay().ifPresent(nextReplay -> extractRepliesRecursive(nextReplay, replyMap));
     }
 
     public boolean matchConditions(MessageContext context) {
-        var messageText = context.getUpdate().getMessage().getText();
+        var messageText = context.getText();
         var role = context.getUserRole();
         var isCommandMatch = getName().equals(messageText);
         return isCommandMatch && roles.contains(role);
     }
 
+    private void showReplyPreview(MessageContext context) {
+        reply.getPreview().ifPresent(preview -> preview.accept(context));
+    }
+
+    private void terminate(MessageContext context) {
+        context.clear();
+    }
+
+    private Step tryGetNextStep(MessageContext context) {
+        return getNextStep().map(action -> action.apply(context)).orElse(Step.NEXT);
+    }
+
+    private void tryGoToReply(MessageContext context) {
+        getReply().ifPresentOrElse(reply -> {
+            showReplyPreview(context);
+            context.setReplyId(reply.getId());
+        }, () -> terminate(context));
+    }
+
     public boolean processAction(MessageContext context) {
-        var nextStep = getAction().apply(context);
+        var nextStep = tryGetNextStep(context);
+
         if (nextStep == Step.NEXT) {
-            getReply().ifPresentOrElse(reply -> context.setCurrentReplyId(reply.getId()), context::clear);
+            tryGoToReply(context);
             return true;
         }
         if (nextStep == Step.TERMINATE) {
-            context.clear();
+            terminate(context);
             return true;
         }
         return false;
@@ -74,6 +97,7 @@ public class Command {
         final List<Reply> replyList = new ArrayList<>();
         Set<String> roles = new HashSet<>();
         String info;
+        Consumer<MessageContext> post;
 
         public Builder(String name) {
             this.name = name;
@@ -81,9 +105,12 @@ public class Command {
         }
 
         public Builder access(Role... roles) {
-            this.roles = Arrays.stream(roles)
-                    .map(Role::toString)
-                    .collect(Collectors.toSet());
+            this.roles = Arrays.stream(roles).map(Role::toString).collect(Collectors.toSet());
+            return this;
+        }
+
+        public Builder info(String info) {
+            this.info = info;
             return this;
         }
 
@@ -100,43 +127,58 @@ public class Command {
             return this;
         }
 
-        public Builder info(String info) {
-            this.info = info;
-            return this;
-        }
-
-        private void createReply(Function<MessageContext, Step> action) {
-            var reply = Reply.builder()
-                    .id(name + replyList.size()).action(action)
-                    .build();
+        private void createReply(Reply.ReplyBuilder replyBuilder) {
+            var reply = replyBuilder.build();
+            reply.setId(name + replyList.size());
             replyList.add(reply);
         }
 
-        public Builder reply(Function<MessageContext, Step> replyAction) {
-            createReply(replyAction);
+        public Builder input(Function<MessageContext, Step> inputAction) {
+            var replyBuilder = Reply.builder().action(inputAction);
+            createReply(replyBuilder);
             return this;
         }
 
-        public Builder reply(Consumer<MessageContext> replyAction) {
-            createReply(context -> {
-                replyAction.accept(context);
+        public Builder input(Reply.ReplyBuilder... replyBuilders) {
+            Arrays.stream(replyBuilders).forEach(this::createReply);
+            return this;
+        }
+
+        public Builder input(Reply.ReplyBuilder replyBuilder) {
+            createReply(replyBuilder);
+            return this;
+        }
+
+        public Builder input(Consumer<MessageContext> inputAction) {
+            var replyBuilder = Reply.builder();
+            replyBuilder.action(context -> {
+                inputAction.accept(context);
                 return Step.NEXT;
             });
+            createReply(replyBuilder);
             return this;
         }
 
+        public Builder post(Consumer<MessageContext> postAction) {
+            this.post = postAction;
+            return this;
+        }
 
-        public Command build() {
-            if (replyList.isEmpty()) {
-                return new Command(name, action, null, roles, info);
-            }
+        private void compileReplies() {
             var currentReply = replyList.getFirst();
-
             for (int i = 1; i < replyList.size(); i++) {
                 var nextReply = replyList.get(i);
                 currentReply.setNextReplay(nextReply);
                 currentReply = nextReply;
             }
+            replyList.getLast().setPost(post);
+        }
+
+        public Command build() {
+            if (replyList.isEmpty()) {
+                return new Command(name, action, null, roles, info);
+            }
+            compileReplies();
             return new Command(name, action, replyList.getFirst(), roles, info);
         }
     }

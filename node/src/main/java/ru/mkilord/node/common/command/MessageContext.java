@@ -1,4 +1,4 @@
-package ru.mkilord.node.common;
+package ru.mkilord.node.common.command;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -22,29 +22,40 @@ public class MessageContext {
     long chatId;
     String userRole;
 
-    String currentReplyId;
+    String replyId;
 
     Map<String, String> values;
 
-    public String getMessageText() {
+    public String getText() {
+        if (update.hasCallbackQuery()) {
+            return update.getCallbackQuery().getData();
+        }
         return update.getMessage().getText();
     }
 
+    public MessageContext setUpdate(Update update) {
+        this.update = update;
+        return this;
+    }
+
     public void put(String key, String value) {
-        if (values == null) values = new HashMap<>();
+        if (Objects.isNull(values)) values = new HashMap<>();
         values.put(key, value);
     }
 
     public String getValue(String key) {
+        if (Objects.isNull(values)) {
+            throw new NullPointerException("Values are null");
+        }
         return values.get(key);
     }
 
     public void clear() {
-        currentReplyId = null;
+        replyId = null;
         if (Objects.nonNull(values)) values.clear();
     }
 
     public boolean hasReply() {
-        return Objects.nonNull(currentReplyId);
+        return Objects.nonNull(replyId);
     }
 }

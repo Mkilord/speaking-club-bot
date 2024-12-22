@@ -7,16 +7,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import ru.mkilord.node.TextUtils;
-import ru.mkilord.node.common.*;
+import ru.mkilord.node.common.command.*;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Random;
+import java.util.*;
 
 import static lombok.AccessLevel.PRIVATE;
-import static ru.mkilord.node.common.Step.*;
+import static ru.mkilord.node.common.command.Step.*;
 
 
 @FieldDefaults(level = PRIVATE, makeFinal = true)
@@ -32,8 +31,8 @@ public class NodeTelegramBot implements CommandRepository {
     public void init() {
         commandHandler.registerCommands(this,
                 context -> send(context, """
-                        Неверная команда!\s
-                        Введите /help чтобы получить справку."""));
+                        ❌ Неверная команда!\s
+                        Для получения справки используйте команду /help. 📘"""));
     }
 
     public void onMessageReceived(Update update) {
@@ -41,6 +40,7 @@ public class NodeTelegramBot implements CommandRepository {
     }
 
     public void onCallbackQueryReceived(Update update) {
+        commandHandler.process(update);
     }
 
     public void send(MessageContext context, String message) {
@@ -48,95 +48,154 @@ public class NodeTelegramBot implements CommandRepository {
         producerService.produceAnswer(outMsg);
     }
 
+    public void send(MessageContext context, InlineKeyboardMarkup keyboardMarkup) {
+        var outMsg = SendMessage.builder().chatId(context.getChatId()).replyMarkup(keyboardMarkup).build();
+        producerService.produceAnswer(outMsg);
+    }
+
+    public void send(MessageContext context, String message, InlineKeyboardMarkup keyboardMarkup) {
+        var outMsg = SendMessage.builder().chatId(context.getChatId()).text(message).replyMarkup(keyboardMarkup).build();
+        producerService.produceAnswer(outMsg);
+    }
+
+    // TODO 2024-12-20 13:03: Что нужно от юзера.
+    // 1 регистрация - есть.
+    // 2 профиль - изменение профиля. Пользователь вводит команду /profile потом ему
+    //   предлагается ввести команду /edit_profile, и срабатывает изменение.
+    // Просмотр встреч: Пользователь получает список доступных ему встреч. Затем
+    // выбирает нужную встречу.
+    // Пользователь может подписываться на клубы.
+    // 3 запись на встречу, пользователь вводит команду встречи, и ему выдаёт
+    /*У меня есть телеграмм бот. А так же команды к нему. При этом библиотека команд, работает следующим образом:
+     * Есть команда которая служит точкой входа, затем когда я получаю команды, бот входит в режим получения ввода
+     * пользователя от для этой команды. При этом, бот может и не входить в режим пользовательского, ввода если это не нужно.
+     * Так устроены мои команды для моего телеграмм бота.
+     * Теперь сам телеграмм бот. Телеграмм бот будет используется для разговорных клубов.
+     * И в нём есть четыре роли. Это участник, организатор, модератор, администратор.
+     * От бота требуется отображать участникам информацию о клубах, а так же возможность записываться на встречи, оставлять отзывы
+     * и получать уведомления о встречи. Организатору в свою очередь требуются возможности чтобы публиковать встречи, и запускать отзывы.
+     * А также получать всех кто записался на встречу. */
+    private void addCommands(List<Command> list, Command... commands) {
+        list.addAll(List.of(commands));
+    }
+
     @Override
     public List<Command> getCommands() {
-        var register = Command.create("/register")
-                .info("Используйте чтобы зарегистрироваться")
+        //Common Inputs:
+        var usernameInput = Reply.builder()
+                .preview(context -> send(context, "Пожалуйста, введи своё ФИО через пробел. ✍️"))
                 .action(context -> {
-                    send(context, "Привет! Давай познакомимся!");
-                    send(context, "Введите имя");
-                })
-                .reply(context -> {
-                    var msg = context.getMessageText();
-                    if (msg.isBlank()) {
-                        send(context, "Введите, имя размером больше чем 1 символ.");
+                    var msg = context.getText();
+                    if (msg.isBlank() || !msg.contains(" ")) {
+                        send(context, "❗ Введите ФИО (имя, фамилию и отчество) через пробел.");
                         return REPEAT;
                     }
-                    context.put("name", msg);
-                    send(context, "Введите фамилию");
-                    return NEXT;
-                })
-                .reply(context -> {
-                    var msg = context.getMessageText();
-                    if (msg.isBlank()) {
-                        send(context, "Введите, фамилию размером больше чем 1 символ.");
+                    String[] fullName = msg.split(" ");
+                    if (fullName.length < 3) {
+                        send(context, "❗ Пожалуйста, укажите полное ФИО (имя, фамилию и отчество).");
                         return REPEAT;
                     }
-                    context.put("surname", msg);
-                    send(context, "Введите номер телефона");
+                    context.put("firstName", fullName[0]);
+                    context.put("lastName", fullName[1]);
+                    context.put("middleName", fullName[2]);
                     return NEXT;
-                })
-                .reply(context -> {
-                    var msg = context.getMessageText();
+                });
+        var emailInput = Reply.builder()
+                .preview(context -> send(context, "Пожалуйста, введи свой email. 📧"))
+                .action(context -> {
+                    context.put("email", context.getText());
+                    return NEXT;
+                });
+        var phoneInput = Reply.builder()
+                .preview(context -> send(context, "Пожалуйста, введи свой телефон. 📱"))
+                .action(context -> {
+                    var msg = context.getText();
                     if (!TextUtils.isProneNumber(msg)) {
-                        send(context, "Введите, телефон в формате: \"79106790783\"");
+                        send(context, "❗ Введи номер телефона в формате: \"79106790783\".");
                         return REPEAT;
                     }
                     context.put("phone", msg);
-                    send(context, "Введите email");
                     return NEXT;
-                })
-                .reply(context -> {
-                    var email = context.getMessageText();
-                    var name = context.getValue("name");
-                    var surname = context.getValue("surname");
-                    var phone = context.getValue("phone");
-
-                    send(context, "Вы зарегистрированы! Ваши данные:");
-                    send(context, "ФИ: %s %s; Тел: %s; Email: %s".formatted(name, surname, phone, email));
-
-                    context.setUserRole(Role.MEMBER.toString());
-                    return TERMINATE;
-                }).build();
-        var start = Command.create("/start")
-                .info("Используйте чтобы начать.")
+                });
+        var inputRate = Reply.builder()
+                .preview(context -> send(context, "Введите число от 0 до 10!"))
                 .action(context -> {
-                    log.debug("Action command /start");
-                    context.put("value", "start");
-                    return NEXT;
-                })
-                .reply(context -> {
-                    log.debug("/start action reply 1");
-                    return NEXT;
-                })
-                .reply(_ -> {
-                    log.debug("/start action reply 2");
-                    return NEXT;
-                }).build();
-        var feedback = Command.create("/feedback")
-                .info("Чтобы пройти опрос.")
-                .access(Role.MEMBER)
-                .action(context -> {
-                    log.debug("Action command /feedback");
-                    send(context, "Поиск опросов!");
-                    var isOk = new Random().nextBoolean();
-                    if (isOk) {
-                        send(context, "Введите оценку клуба немецкого от 0 до 10:");
-                        return NEXT;
-                    }
-                    send(context, "Доступные опросы не найдены!");
-                    return TERMINATE;
-                }).reply(context -> {
-                    log.debug("Action command /feedback reply" + context.getUpdate().getMessage().getText());
                     var msg = context.getUpdate().getMessage().getText();
                     if (TextUtils.isRange(msg, 0, 10)) {
                         send(context, "Оценка записана!");
-                        log.debug("Wrong message!" + context.getUpdate().getMessage().getText());
                         return NEXT;
                     }
-                    send(context, "Введите число от 0 до 10!");
                     return REPEAT;
-                }).build();
+                });
+        var commands = new ArrayList<Command>();
+        //UnregisterCommands
+        addCommands(commands,
+                Command.create("/start")
+                        .access(Role.USER)
+                        .info("Используйте, чтобы получить стартовую информацию.")
+                        .action((context -> {
+                            send(context, """
+                                    👋 Привет! Это бот для разговорных клубов.
+                                    
+                                    Здесь ты можешь:
+                                    
+                                    - 📅 Записаться на встречи клубов.
+                                    - ✍️ Оставить отзыв.
+                                    - 🔔 Подписаться на уведомления о встречах клубов.
+                                    
+                                    Для начала, зарегистрируйся с помощью команды /register.
+                                    
+                                    📘 Чтобы получить справку используй /help.
+                                    """);
+                        })).build(),
+                Command.create("/register")
+                        .info("Позволяет зарегистрироваться.")
+                        .action(context -> {
+                            send(context, "Привет! Давай познакомимся! 😊");
+                        })
+                        .input(usernameInput/*, phoneInput, emailInput*/)
+                        .post(context -> {
+                            var firstName = context.getValue("firstName");
+                            var lastName = context.getValue("lastName");
+                            var middleName = context.getValue("middleName");
+                            var email = context.getValue("email");
+                            var phone = context.getValue("phone");
+                            send(context, """
+                                    ✅ Данные записаны!
+                                    
+                                    Ваши данные:
+                                    📛 ФИО: %s %s %s
+                                    📱 Телефон: %s
+                                    📧 Email: %s""".formatted(firstName, lastName, middleName, phone, email));
+                            send(context, "ℹ️ Для того чтобы узнать, что умеет бот, используй команду /help! 🤖");
+                            context.setUserRole(Role.MEMBER.toString());
+                        }).build(),
+                Command.create("/feedback")
+                        .info("Чтобы пройти опрос.")
+                        .access(Role.MEMBER)
+                        .action(context -> {
+                            send(context, "Поиск опросов!");
+                            var isOk = new Random().nextBoolean();
+                            if (isOk) {
+                                send(context, "Введите оценку клуба немецкого от 0 до 10:");
+                                return NEXT;
+                            }
+                            send(context, "Доступные опросы не найдены!");
+                            return TERMINATE;
+                        })
+                        // TODO 2024-12-21 20:25: Нужно подумать как сделать POST для реплая.
+                        .input(inputRate)
+                        .input(context -> {
+                            var msg = context.getUpdate().getMessage().getText();
+                            if (TextUtils.isRange(msg, 0, 10)) {
+                                send(context, "Оценка записана!");
+                                return NEXT;
+                            }
+                            send(context, "Введите число от 0 до 10!");
+                            return REPEAT;
+                        }).build());
+
+
         var end = Command.create("/end")
                 .info("Чтобы апнуть права хахахах")
                 .access(Role.EMPLOYEES)
@@ -145,11 +204,11 @@ public class NodeTelegramBot implements CommandRepository {
                     log.debug("Action command /end");
                     return NEXT;
                 })
-                .reply(_ -> {
+                .input(_ -> {
                     log.debug("/end action reply 1");
                     return NEXT;
                 })
-                .reply(_ -> {
+                .input(_ -> {
                     log.debug("/end action reply 2");
                     return NEXT;
                 }).build();
@@ -158,33 +217,79 @@ public class NodeTelegramBot implements CommandRepository {
                 .access(Role.MEMBER_EMPLOYEES)
                 .action(context -> {
                     send(context, "Твоя роль: %s".formatted(context.getUserRole()));
+                    var firstName = context.getValue("firstName");
+                    var lastName = context.getValue("lastName");
+                    var middleName = context.getValue("middleName");
+                    var email = context.getValue("email");
+                    var phone = context.getValue("phone");
+                    send(context, """
+                            Ваши данные:
+                            📛 ФИО: %s %s %s
+                            📱 Телефон: %s
+                            📧 Email: %s""".formatted(firstName, lastName, middleName, phone, email));
+                    send(context, "Чтобы изменить данные используй /edit_profile");
                 }).build();
 
-        var simpleCommands = new ArrayList<>(List.of(profile, register, start, end, feedback));
+        addCommands(commands, Command.create("/edit_profile")
+                .access(Role.MEMBER_EMPLOYEES)
+                .action(context -> {
+                    send(context, "Познакомимся вновь!");
+                })
+                .input(usernameInput, phoneInput, emailInput)
+                .post(context -> send(context, "✅ Данные записаны!")).build());
 
+        addCommands(commands, profile, end);
+
+
+        addCommands(commands, Command.create("/clubs")
+                .access(Role.USER)
+                .action(context -> {
+                    // TODO 2024-12-22 14:33: Лучше использовать uuid.
+                    var list = new ArrayList<>(List.of("Немецкий", "Русский", "Английский"));
+                    var buttons = list.stream().map(string -> {
+                        var button = new InlineKeyboardButton(string);
+                        button.setCallbackData(string);
+                        button.setText(string);
+                        return button;
+                    }).toList();
+                    var wrappedList = buttons.stream()
+                            .map(Arrays::asList)
+                            .toList();
+                    var keyboard = InlineKeyboardMarkup.builder().keyboard(wrappedList).build();
+                    send(context, "Выберите клуб", keyboard);
+                }).input(context -> {
+                    var club = context.getText();
+                    send(context, "Вы выбрали клуб: " + club);
+
+                    return NEXT;
+                })
+                .build());
 
         var help = Command.create("/help")
                 .access(Role.ALL)
                 .action(context -> {
                     var strBuilder = new StringBuilder();
-                    simpleCommands.stream()
+                    commands.stream()
                             .filter(command ->
                                     (command.getRoles().contains(context.getUserRole()))
                                             && Objects.nonNull(command.getInfo()))
                             .forEach(command -> strBuilder
+                                    .append(" - ")
                                     .append(command.getName())
                                     .append(" - ")
                                     .append(command.getInfo())
                                     .append("\n"));
-                    var outMsg = strBuilder.toString();
-                    if (outMsg.isEmpty()) {
-                        outMsg = "Для вас нет доступных команд!";
+                    var outMsg = "📘 Команды:\n\n";
+                    if (strBuilder.isEmpty()) {
+                        outMsg = "Пока что для вас нет доступных команд!";
+                    } else {
+                        outMsg += strBuilder.toString();
                     }
                     send(context, outMsg);
                     return TERMINATE;
                 }).build();
 
-        simpleCommands.add(help);
-        return new ArrayList<>(simpleCommands);
+        addCommands(commands, help);
+        return commands;
     }
 }

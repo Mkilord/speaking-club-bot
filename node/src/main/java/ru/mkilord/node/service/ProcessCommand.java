@@ -40,7 +40,7 @@ public class ProcessCommand {
             return this;
         }
 
-        InlineKeyboardMarkup compile() {
+        InlineKeyboardMarkup build() {
             if (!keyboardRows.getLast().equals(currentRow)) {
                 keyboardRows.add(currentRow);
             }
@@ -51,16 +51,11 @@ public class ProcessCommand {
 
     private void sendUserMenu(long chatId) {
         var keyboard = new CommandMenuBuilder()
-                .with(Button()
-                        .text("Старт")
-                )
-                .with(Button()
-                        .text("Выбрать клуб"))
+                .with(Button().text("Старт"))
+                .with(Button().text("Выбрать клуб"))
                 .nextRow()
-                .with(Button()
-                        .text("Отзывы"))
-                .with(Button()
-                        .text("Профиль"))
+                .with(Button().text("Отзывы"))
+                .with(Button().text("Профиль"))
                 .compile();
         var outMsg = SendMessage.builder()
                 .chatId(chatId)
@@ -71,21 +66,12 @@ public class ProcessCommand {
 
     private void sendUserMenuWithRepliesButtons(long chatId) {
         var keyboard = new InlineMenuBuilder()
-                .with(InlineMenuBuilder.getButton()
-                        .text("Старт")
-                        .callbackData("/start"))
-                .with(InlineMenuBuilder.getButton()
-                        .text("Выбрать клуб")
-                        .callbackData("/clubs")
-                )
+                .with(InlineMenuBuilder.getButton().text("Старт").callbackData("/start"))
+                .with(InlineMenuBuilder.getButton().text("Выбрать клуб").callbackData("/clubs"))
                 .nextRow()
-                .with(InlineMenuBuilder.getButton()
-                        .text("Отзывы")
-                        .callbackData("/feedback"))
-                .with(InlineMenuBuilder.getButton()
-                        .text("Профиль")
-                        .callbackData("/profile"))
-                .compile();
+                .with(InlineMenuBuilder.getButton().text("Отзывы").callbackData("/feedback"))
+                .with(InlineMenuBuilder.getButton().text("Профиль").callbackData("/profile"))
+                .build();
         var outMsg = SendMessage.builder()
                 .chatId(chatId)
                 .text("Выберите команду:")

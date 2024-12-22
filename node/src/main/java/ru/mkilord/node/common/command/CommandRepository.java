@@ -1,4 +1,4 @@
-package ru.mkilord.node.common;
+package ru.mkilord.node.common.command;
 
 import java.util.List;
 
