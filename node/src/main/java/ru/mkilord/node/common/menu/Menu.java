@@ -5,18 +5,34 @@ import lombok.Getter;
 import lombok.experimental.FieldDefaults;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import ru.mkilord.node.common.command.MessageContext;
+import ru.mkilord.node.common.command.Step;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 import static lombok.AccessLevel.PRIVATE;
 
 @FieldDefaults(makeFinal = true, level = PRIVATE)
 @AllArgsConstructor(access = PRIVATE)
-@Getter
 public class Menu {
     InlineKeyboardMarkup keyboardMarkup;
+
+    public InlineKeyboardMarkup showMenu() {
+        return keyboardMarkup;
+    }
+
+    @Getter
+    List<Item> items;
+
+    public Step getAction(MessageContext context) {
+        return items.stream().filter(item -> Objects.equals(item.getId(), context.getText()))
+                .findFirst()
+                .flatMap(Item::getOnClick)
+                .map(onClick -> onClick.apply(context)).orElse(Step.TERMINATE);
+    }
 
     public static Builder builder() {
         return new Builder();
@@ -28,6 +44,11 @@ public class Menu {
 
         public Builder items(Item item) {
             items.add(item);
+            return this;
+        }
+
+        public Builder items(Item... items) {
+            this.items.addAll(Arrays.asList(items));
             return this;
         }
 
@@ -48,7 +69,7 @@ public class Menu {
             }).toList();
             var wrappedList = buttons.stream().map(Arrays::asList).toList();
             var keyboard = InlineKeyboardMarkup.builder().keyboard(wrappedList).build();
-            return new Menu(keyboard);
+            return new Menu(keyboard, items);
         }
     }
 }

@@ -2,10 +2,14 @@ package ru.mkilord.node.common.menu;
 
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
+import ru.mkilord.node.common.command.MessageContext;
+import ru.mkilord.node.common.command.Step;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
 
 import static lombok.AccessLevel.PRIVATE;
 
@@ -16,16 +20,25 @@ public class Item {
     String id;
     String text;
 
+    Function<MessageContext, Step> onClick;
+
+    public Optional<Function<MessageContext, Step>> getOnClick() {
+        return Optional.ofNullable(onClick);
+    }
+
     public static List<Item> of(Item... items) {
         return new ArrayList<>(List.of(items));
+    }
+
+    public Item(String text, Function<MessageContext, Step> onClick) {
+        this.id = UUID.randomUUID().toString();
+        this.text = text;
+        this.onClick = onClick;
     }
 
     public Item(String id, String text) {
         this.id = id;
         this.text = text;
-    }
-
-    public Item(String text) {
-        this(UUID.randomUUID().toString(), text);
+        this.onClick = null;
     }
 }
