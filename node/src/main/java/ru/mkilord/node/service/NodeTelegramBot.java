@@ -57,23 +57,15 @@ public class NodeTelegramBot implements CommandRepository {
         producerService.produceAnswer(outMsg);
     }
 
-    // TODO 2024-12-20 13:03: Что нужно от юзера.
-    // 1 регистрация - есть.
-    // 2 профиль - изменение профиля. Пользователь вводит команду /profile потом ему
-    //   предлагается ввести команду /edit_profile, и срабатывает изменение.
-    // Просмотр встреч: Пользователь получает список доступных ему встреч. Затем
-    // выбирает нужную встречу.
-    // Пользователь может подписываться на клубы.
-    // 3 запись на встречу, пользователь вводит команду встречи, и ему выдаёт
-    /*У меня есть телеграмм бот. А так же команды к нему. При этом библиотека команд, работает следующим образом:
-     * Есть команда которая служит точкой входа, затем когда я получаю команды, бот входит в режим получения ввода
-     * пользователя от для этой команды. При этом, бот может и не входить в режим пользовательского, ввода если это не нужно.
-     * Так устроены мои команды для моего телеграмм бота.
-     * Теперь сам телеграмм бот. Телеграмм бот будет используется для разговорных клубов.
-     * И в нём есть четыре роли. Это участник, организатор, модератор, администратор.
-     * От бота требуется отображать участникам информацию о клубах, а так же возможность записываться на встречи, оставлять отзывы
-     * и получать уведомления о встречи. Организатору в свою очередь требуются возможности чтобы публиковать встречи, и запускать отзывы.
-     * А также получать всех кто записался на встречу. */
+    /*USER - просто любой рандомный пользователь не прошедший регистрацию
+     *   /start - выводит начальную информацию.
+     *   /register - позволяет зарегистрироваться и получить права участника.
+     *   /help - выводит список доступных команд.
+     *
+     *MEMBER - это уже зарегистрированный пользователь, который может полноценно взаимодействовать с клубами.
+     *  /profile
+     *  */
+
     private void addCommands(List<Command> list, Command... commands) {
         list.addAll(List.of(commands));
     }
@@ -131,7 +123,7 @@ public class NodeTelegramBot implements CommandRepository {
         addCommands(commands,
                 Command.create("/start")
                         .access(Role.USER)
-                        .info("Используйте, чтобы получить стартовую информацию.")
+                        .help("Используйте, чтобы получить стартовую информацию.")
                         .action((context -> {
                             send(context, """
                                     👋 Привет! Это бот для разговорных клубов.
@@ -148,7 +140,7 @@ public class NodeTelegramBot implements CommandRepository {
                                     """);
                         })).build(),
                 Command.create("/register")
-                        .info("Позволяет зарегистрироваться.")
+                        .help("Позволяет зарегистрироваться.")
                         .action(context -> {
                             send(context, "Привет! Давай познакомимся! 😊");
                         })
@@ -168,12 +160,67 @@ public class NodeTelegramBot implements CommandRepository {
                                     📧 Email: %s""".formatted(firstName, lastName, middleName, phone, email));
                             send(context, "ℹ️ Для того чтобы узнать, что умеет бот, используй команду /help! 🤖");
                             context.setUserRole(Role.MEMBER.toString());
-                        }).build(),
+                        }).build());
+
+        //Member Commands
+        var clubMenu = Menu.builder()
+                .items(new Item("Встречи", context -> {
+                    //Запрашиваем доступные встречи.
+                    var meets = new ArrayList<>(List.of("20.11.2024 18:00", "24.11.2024 12:20"));
+                    var items = meets.stream().map(string -> new Item(string, string)).toList();
+                    var menu = Menu.builder()
+                            .items(items)
+                            .build();
+                    send(context, "Доступные встречи: ", menu.showMenu());
+                    return NEXT;
+                }), new Item("Подписаться", context -> {
+                    //Подписываем его на клуб.
+                    send(context, "Подписка оформлена!");
+                    return TERMINATE;
+                }), new Item("О клубе", context -> {
+                    //Отправляем информацию о клубе.
+                    send(context, "Информация о клубе: " + context.getValue("club"));
+                    return TERMINATE;
+                }))
+                .build();
+
+        var profileMenu = Menu.builder()
+
+                .build();
+
+        addCommands(commands,
+                Command.create("/clubs")
+                        .access(Role.MEMBER)
+                        .help("Записаться на встречу, получить информацию о клубе.")
+                        .action(context -> {
+                            var clubs = new ArrayList<>(List.of("Немецкий", "Русский", "Английский"));
+                            // Запросить информацию о клубах
+                            var items = clubs.stream().map(string -> new Item(string, string)).toList();
+                            var menu = Menu.builder()
+                                    .items(items)
+                                    .build();
+                            send(context, "Выберите клуб", menu.showMenu());
+                        })
+                        .input(context -> {
+                            var club = context.getText();
+                            send(context, "Вы выбрали клуб: " + club);
+                            send(context, club + " клуб:", clubMenu.showMenu());
+                            // Запросить выбранный клуб.
+                            context.put("club", club);
+                        })
+                        .input(clubMenu::onClick)
+                        .input(context -> {
+                            //Зарегистрировать встречу
+                            send(context, "Отметил что ты придёшь на встречу. " + context.getText());
+                            return TERMINATE;
+                        })
+                        .build(),
                 Command.create("/feedback")
-                        .info("Чтобы пройти опрос.")
+                        .help("Чтобы пройти опрос.")
                         .access(Role.MEMBER)
                         .action(context -> {
                             send(context, "Поиск опросов!");
+                            //Запросить информацию об опросах.
                             var isOk = new Random().nextBoolean();
                             if (isOk) {
                                 send(context, "Введите оценку клуба немецкого от 0 до 10:");
@@ -182,52 +229,42 @@ public class NodeTelegramBot implements CommandRepository {
                             send(context, "Доступные опросы не найдены!");
                             return TERMINATE;
                         })
-                        // TODO 2024-12-21 20:25: Нужно подумать как сделать POST для реплая.
                         .input(inputRate)
                         .input(context -> {
                             var msg = context.getUpdate().getMessage().getText();
                             if (TextUtils.isRange(msg, 0, 10)) {
                                 send(context, "Оценка записана!");
+                                //Записать оценку.
                                 return NEXT;
                             }
                             send(context, "Введите число от 0 до 10!");
                             return REPEAT;
-                        }).build());
+                        }).build(),
+                Command.create("/profile")
+                        .help("Информация о твоём профиле.")
+                        .access(Role.MEMBER_EMPLOYEES)
+                        .action(context -> {
+                            send(context, "Твоя роль: %s".formatted(context.getUserRole()));
+                            var firstName = context.getValue("firstName");
+                            var lastName = context.getValue("lastName");
+                            var middleName = context.getValue("middleName");
+                            var email = context.getValue("email");
+                            var phone = context.getValue("phone");
+                            send(context, """
+                                    Ваши данные:
+                                    📛 ФИО: %s %s %s
+                                    📱 Телефон: %s
+                                    📧 Email: %s""".formatted(firstName, lastName, middleName, phone, email),);
+                            send(context, "Чтобы изменить данные используй /edit_profile");
+                        }).build(),
 
-
-        var end = Command.create("/end")
-                .info("Чтобы апнуть права хахахах")
-                .access(Role.EMPLOYEES)
-                .action(context -> {
-                    context.setUserRole(Role.ADMIN.toString());
-                    log.debug("Action command /end");
-                    return NEXT;
-                })
-                .input(_ -> {
-                    log.debug("/end action reply 1");
-                    return NEXT;
-                })
-                .input(_ -> {
-                    log.debug("/end action reply 2");
-                    return NEXT;
-                }).build();
-        var profile = Command.create("/profile")
-                .info("Информация о твоём профиле.")
-                .access(Role.MEMBER_EMPLOYEES)
-                .action(context -> {
-                    send(context, "Твоя роль: %s".formatted(context.getUserRole()));
-                    var firstName = context.getValue("firstName");
-                    var lastName = context.getValue("lastName");
-                    var middleName = context.getValue("middleName");
-                    var email = context.getValue("email");
-                    var phone = context.getValue("phone");
-                    send(context, """
-                            Ваши данные:
-                            📛 ФИО: %s %s %s
-                            📱 Телефон: %s
-                            📧 Email: %s""".formatted(firstName, lastName, middleName, phone, email));
-                    send(context, "Чтобы изменить данные используй /edit_profile");
-                }).build();
+                Command.create("/edit_profile")
+                        .access(Role.MEMBER_EMPLOYEES)
+                        .action(context -> {
+                            send(context, "Познакомимся вновь!");
+                        })
+                        .input(usernameInput, phoneInput, emailInput)
+                        .post(context -> send(context, "✅ Данные записаны!")).build());
 
         addCommands(commands, Command.create("/edit_profile")
                 .access(Role.MEMBER_EMPLOYEES)
@@ -236,50 +273,6 @@ public class NodeTelegramBot implements CommandRepository {
                 })
                 .input(usernameInput, phoneInput, emailInput)
                 .post(context -> send(context, "✅ Данные записаны!")).build());
-
-        addCommands(commands, profile, end);
-
-        Menu menu = Menu.builder()
-                .items()
-                .build();
-
-        addCommands(commands, Command.create("/clubs")
-                .access(Role.USER)
-                .action(context -> {
-                    var list = new ArrayList<>(List.of("Немецкий", "Русский", "Английский"));
-                    var items = list.stream().map(string -> new Item(string, string)).toList();
-                    var menu = Menu.builder()
-                            .items(items)
-                            .build();
-                    send(context, "Выберите клуб", menu.getKeyboardMarkup());
-                }).input(context -> {
-                    var items = Item.of(
-                            new Item("1", "Встречи"),
-                            new Item("2", "Подписаться"),
-                            new Item("3", "О клубе"));
-                    var menu = Menu.builder().items(items).build();
-                    var club = context.getText();
-
-                    send(context, "Вы выбрали клуб: " + club);
-                    send(context, club + " клуб:",menu.getKeyboardMarkup());
-
-                    context.put("club", club);
-                    return NEXT;
-                }).input(context -> {
-                    String userInput = context.getText();
-                    return switch (userInput) {
-                        case "1" -> {
-                            send(context, "Подписка оформлена!");
-                            yield TERMINATE;
-                        }
-                        case "2" -> {
-                            send(context, "Информация о клубе: " + context.getValue("club"));
-                            yield TERMINATE;
-                        }
-                        default -> TERMINATE;
-                    };
-                })
-                .build());
 
         var help = Command.create("/help")
                 .access(Role.ALL)

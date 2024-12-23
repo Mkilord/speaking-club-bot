@@ -109,7 +109,7 @@ public class Command {
             return this;
         }
 
-        public Builder info(String info) {
+        public Builder help(String info) {
             this.info = info;
             return this;
         }
@@ -158,7 +158,7 @@ public class Command {
             createReply(replyBuilder);
             return this;
         }
-
+        /*Будет выполнен, после применения последнего Reply в очереди*/
         public Builder post(Consumer<MessageContext> postAction) {
             this.post = postAction;
             return this;

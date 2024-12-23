@@ -27,7 +27,7 @@ public class Menu {
     @Getter
     List<Item> items;
 
-    public Step getAction(MessageContext context) {
+    public Step onClick(MessageContext context) {
         return items.stream().filter(item -> Objects.equals(item.getId(), context.getText()))
                 .findFirst()
                 .flatMap(Item::getOnClick)
