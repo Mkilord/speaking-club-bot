@@ -91,7 +91,6 @@ public class Command {
     }
 
     @FieldDefaults(level = PRIVATE)
-    @Getter
     public static class Builder {
         final String name;
         Function<MessageContext, Step> action;
