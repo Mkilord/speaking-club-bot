@@ -1,4 +1,4 @@
-package ru.mkilord.node;
+package ru.mkilord.node.util;
 
 import org.apache.commons.lang3.math.NumberUtils;
 

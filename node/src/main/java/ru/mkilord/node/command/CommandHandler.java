@@ -1,9 +1,10 @@
-package ru.mkilord.node.common.command;
+package ru.mkilord.node.command;
 
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import ru.mkilord.node.model.Role;
 
 import java.util.HashMap;
 import java.util.List;
@@ -26,9 +27,9 @@ public class CommandHandler {
 
     Consumer<MessageContext> unknownCommandCallback;
 
-    public void registerCommands(CommandRepository commandRepository, Consumer<MessageContext> unknownCommandCallback) {
+    public void registerCommands(CommandCatalog commandCatalog, Consumer<MessageContext> unknownCommandCallback) {
         this.unknownCommandCallback = unknownCommandCallback;
-        commandsList = commandRepository.getCommands();
+        commandsList = commandCatalog.setCommands();
         replyMap = commandsList.stream()
                 .map(Command::extractReplies)
                 .flatMap(repliesMap -> repliesMap.entrySet().stream())

@@ -7,7 +7,7 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import ru.mkilord.node.service.ConsumerService;
-import ru.mkilord.node.service.NodeTelegramBot;
+import ru.mkilord.node.controller.BotController;
 
 import static lombok.AccessLevel.PRIVATE;
 import static ru.mkilord.model.RabbitQueue.MESSAGE_UPDATE;
@@ -17,7 +17,7 @@ import static ru.mkilord.model.RabbitQueue.MESSAGE_UPDATE;
 @FieldDefaults(level = PRIVATE, makeFinal = true)
 @AllArgsConstructor
 public class ConsumerServiceImpl implements ConsumerService {
-    NodeTelegramBot telegramBot;
+    BotController telegramBot;
 
     @Override
     @RabbitListener(queues = MESSAGE_UPDATE)

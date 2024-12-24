@@ -1,4 +1,4 @@
-package ru.mkilord.node.common.command;
+package ru.mkilord.node.command;
 
 import lombok.Builder;
 import lombok.Getter;

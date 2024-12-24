@@ -1,12 +1,11 @@
-package ru.mkilord.node.common.menu;
+package ru.mkilord.node.command.menu;
 
 import lombok.AllArgsConstructor;
-import lombok.Getter;
 import lombok.experimental.FieldDefaults;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
-import ru.mkilord.node.common.command.MessageContext;
-import ru.mkilord.node.common.command.Step;
+import ru.mkilord.node.command.MessageContext;
+import ru.mkilord.node.command.Step;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -15,8 +14,8 @@ import java.util.Objects;
 
 import static lombok.AccessLevel.PRIVATE;
 
-@FieldDefaults(makeFinal = true, level = PRIVATE)
 @AllArgsConstructor(access = PRIVATE)
+@FieldDefaults(makeFinal = true, level = PRIVATE)
 public class Menu {
     InlineKeyboardMarkup keyboardMarkup;
 
@@ -24,7 +23,6 @@ public class Menu {
         return keyboardMarkup;
     }
 
-    @Getter
     List<Item> items;
 
     public Step onClick(MessageContext context) {
