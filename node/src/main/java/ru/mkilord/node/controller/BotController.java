@@ -113,13 +113,48 @@ public class BotController implements CommandCatalog {
         var inputRate = Reply.builder()
                 .preview(context -> send(context, "Введите число от 0 до 10!"))
                 .action(context -> {
-                    var msg = context.getUpdate().getMessage().getText();
-                    if (TextUtils.isRange(msg, 0, 10)) {
-                        send(context, "Оценка записана!");
-                        return NEXT;
+                    var msg = context.getText();
+                    if (!TextUtils.isRange(msg, 0, 10)) {
+                        send(context, "❗ Введите число от 0 до 10!");
+                        return REPEAT;
                     }
-                    send(context, "❗ Введите число от 0 до 10!");
-                    return REPEAT;
+                    context.put("rate", msg);
+                    return NEXT;
+                });
+        var inputClubName = Reply.builder().preview(context -> send(context, "Введите название клуба."))
+                .action(context -> {
+                    var msg = context.getText();
+                    if (msg.isBlank() || msg.length() < 2) {
+                        send(context, "❗ Введите имя клуба длиннее 2х символов!");
+                        return REPEAT;
+                    }
+                    context.put("clubName", msg);
+                    return NEXT;
+                });
+        var inputClubDescription = Reply.builder().preview(context -> send(context, "Введите описание клуба."))
+                .action(context -> {
+                    var msg = context.getText();
+                    if (msg.isBlank() || msg.length() < 20) {
+                        send(context, "❗ Введите Описание клуба 20ти символов!");
+                        return REPEAT;
+                    }
+                    context.put("clubDescription", msg);
+                    return NEXT;
+                });
+        var inputSelectClub = Reply.builder()
+                .preview(context -> {
+                    var clubs = new ArrayList<>(List.of("Немецкий", "Русский", "Английский"));
+                    // Запросить информацию о клубах
+                    var items = clubs.stream().map(string -> new Item(string, string)).toList();
+                    var menu = Menu.builder()
+                            .items(items)
+                            .build();
+                    send(context, "Выберите клуб", menu.showMenu());
+                }).action(context -> {
+                    var club = context.getText();
+                    context.put("club", club);
+                    send(context, "Вы выбрали клуб: " + club);
+                    return NEXT;
                 });
         var commands = new ArrayList<Command>();
 
@@ -189,26 +224,15 @@ public class BotController implements CommandCatalog {
                     return TERMINATE;
                 }))
                 .build();
+
         var clubsCommand = Command.create("/clubs")
                 .access(Role.MEMBER)
                 .help("Записаться на встречу, получить информацию о клубе.")
-                .action(context -> {
-                    var clubs = new ArrayList<>(List.of("Немецкий", "Русский", "Английский"));
-                    // Запросить информацию о клубах
-                    var items = clubs.stream().map(string -> new Item(string, string)).toList();
-                    var menu = Menu.builder()
-                            .items(items)
-                            .build();
-                    send(context, "Выберите клуб", menu.showMenu());
-                })
-                .input(context -> {
-                    var club = context.getText();
-                    send(context, "Вы выбрали клуб: " + club);
+                .input(inputSelectClub)
+                .input(Reply.builder().preview(context -> {
+                    var club = context.getValue("club");
                     send(context, club + " клуб:", clubMenu.showMenu());
-                    // Запросить выбранный клуб.
-                    context.put("club", club);
-                })
-                .input(clubMenu::onClick)
+                }).action(clubMenu::onClick))
                 .input(context -> {
                     //Зарегистрировать встречу
                     send(context, "Отметил что ты придёшь на встречу. " + context.getText());
@@ -224,22 +248,15 @@ public class BotController implements CommandCatalog {
                     //Запросить информацию об опросах.
                     var isOk = new Random().nextBoolean();
                     if (isOk) {
-                        send(context, "Введите оценку клуба немецкого от 0 до 10:");
                         return NEXT;
                     }
                     send(context, "Доступные опросы не найдены!");
                     return TERMINATE;
                 })
                 .input(inputRate)
-                .input(context -> {
-                    var msg = context.getUpdate().getMessage().getText();
-                    if (TextUtils.isRange(msg, 0, 10)) {
-                        send(context, "Оценка записана!");
-                        //Записать оценку.
-                        return NEXT;
-                    }
-                    send(context, "Введите число от 0 до 10!");
-                    return REPEAT;
+                .post(context -> {
+                    var rate = context.getValue("rate");
+                    send(context, "Оценка записана: " + rate);
                 }).build();
 
         var profileMenu = Menu.builder()
@@ -247,7 +264,7 @@ public class BotController implements CommandCatalog {
                 .build();
         var profile = Command.create("/profile")
                 .help("Информация о твоём профиле.")
-                .access(Role.MEMBER_EMPLOYEES)
+                .access(Role.MEMBER_AND_EMPLOYEES)
                 .action(context -> {
                     send(context, "Твоя роль: %s".formatted(context.getUserRole()));
                     var firstName = context.getValue("firstName");
@@ -262,16 +279,17 @@ public class BotController implements CommandCatalog {
                             📧 Email: %s""".formatted(firstName, lastName, middleName, phone, email), profileMenu.showMenu());
                 }).build();
         var editProfile = Command.create("/edit_profile")
-                .access(Role.MEMBER_EMPLOYEES)
+                .access(Role.MEMBER_AND_EMPLOYEES)
                 .action(context -> {
                     send(context, "Познакомимся вновь!");
                 })
                 .input(usernameInput, phoneInput, emailInput)
                 .post(context -> send(context, "✅ Данные записаны!")).build();
 
+        // TODO 2024-12-24 13:53: убрать при релизе
         var debugMenu = Menu.builder().items(
-                new Item("Получить Админа", context -> {
-                    context.setUserRole(Role.ADMIN.toString());
+                new Item("Получить Модератора", context -> {
+                    context.setUserRole(Role.MODERATOR.toString());
                     return TERMINATE;
                 }),
                 new Item("Получить Участника", context -> {
@@ -284,11 +302,37 @@ public class BotController implements CommandCatalog {
                 })
         ).build();
 
+        // TODO 2024-12-24 13:53: убрать при релизе
         var debug = Command.create("/debug").access(Role.ALL).action(context -> {
             send(context, "Выберите функцию:", debugMenu.showMenu());
         }).input(debugMenu::onClick).build();
 
-        addCommands(commands, debug, clubsCommand, feedback, profile, editProfile);
+        var createClub = Command.create("/create_club").access(Role.MEMBER)
+                .input(inputClubName, inputClubDescription)
+                .input(Reply.builder().preview(context -> {
+                            var clubName = context.getValue("clubName");
+                            var clubDescription = context.getValue("clubDescription");
+                            send(context, """
+                                    Клуб:%s
+                                    О клубе:
+                                    %s
+                                    """.formatted(clubName, clubDescription));
+                            send(context, "Клуб создан!");
+                        })
+                ).build();
+
+//        var clubsControlMenu = Menu.builder().items(new Item(""))
+
+        var controlClubs = Command.create("/control_clubs").access(Role.USER)
+                .input(inputSelectClub)
+                .input(context -> {
+                    var club = context.getValue("club");
+                    //Удалить. Изменить.
+
+                }).build();
+
+
+        addCommands(commands, createClub, debug, clubsCommand, feedback, profile, editProfile);
         var help = Command.create("/help")
                 .access(Role.ALL)
                 .action(context -> {

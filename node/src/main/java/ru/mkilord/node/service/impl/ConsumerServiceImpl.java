@@ -6,11 +6,10 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import ru.mkilord.node.service.ConsumerService;
 import ru.mkilord.node.controller.BotController;
+import ru.mkilord.node.service.ConsumerService;
 
 import static lombok.AccessLevel.PRIVATE;
-import static ru.mkilord.model.RabbitQueue.MESSAGE_UPDATE;
 
 @Service
 @Log4j2
@@ -20,7 +19,7 @@ public class ConsumerServiceImpl implements ConsumerService {
     BotController telegramBot;
 
     @Override
-    @RabbitListener(queues = MESSAGE_UPDATE)
+    @RabbitListener(queues = "${spring.rabbitmq.queues.text-message-update}")
     public void consumeMessageUpdates(Update update) {
         var text = "";
 

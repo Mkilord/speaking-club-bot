@@ -3,11 +3,9 @@ package ru.mkilord.dispatcher.config;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import static ru.mkilord.model.RabbitQueue.ANSWER_MESSAGE;
-import static ru.mkilord.model.RabbitQueue.MESSAGE_UPDATE;
 
 @Configuration
 public class RabbitConfig {
@@ -16,13 +14,19 @@ public class RabbitConfig {
         return new Jackson2JsonMessageConverter();
     }
 
+    @Value("${spring.rabbitmq.queues.text-message-update}")
+    private String textMessageUpdateQueue;
+
+    @Value("${spring.rabbitmq.queues.answer-message}")
+    private String answerMessageQueue;
+
     @Bean
     public Queue messageQueue() {
-        return new Queue(MESSAGE_UPDATE);
+        return new Queue(textMessageUpdateQueue);
     }
 
     @Bean
     public Queue answerQueue() {
-        return new Queue(ANSWER_MESSAGE);
+        return new Queue(answerMessageQueue);
     }
 }

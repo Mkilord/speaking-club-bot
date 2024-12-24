@@ -7,8 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import ru.mkilord.dispatcher.config.RabbitConfig;
 import ru.mkilord.dispatcher.service.UpdateProducer;
-import ru.mkilord.model.RabbitQueue;
 
 import java.util.Objects;
 
@@ -23,6 +23,7 @@ public class UpdateController {
     @NonFinal
     TelegramBot telegramBot;
     UpdateProducer producer;
+    RabbitConfig rabbitConfig;
 
     public void registerBot(TelegramBot telegramBot) {
         log.debug("Register bot: " + telegramBot.getBotUsername());
@@ -62,13 +63,13 @@ public class UpdateController {
     private void processCallbackQuery(Update update) {
         var callbackQuery = update.getCallbackQuery();
         log.debug("processCallbackQuery: " + callbackQuery.getData());
-        producer.produce(RabbitQueue.MESSAGE_UPDATE, update);
+        producer.produce(rabbitConfig.messageQueue().getName(), update);
         telegramBot.answerCallbackQuery(callbackQuery.getId());
     }
 
     private void processTextMessage(Update update) {
         log.debug("Process text message: " + update.getMessage().getText());
-        producer.produce(RabbitQueue.MESSAGE_UPDATE, update);
+        producer.produce(rabbitConfig.messageQueue().getName(), update);
     }
 
     public void sendAnswerMessage(SendMessage sendMessage) {

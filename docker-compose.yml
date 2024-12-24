@@ -1,0 +1,111 @@
+version: '3.9'
+services:
+  dispatcher:
+    container_name: dispatcher
+#    restart: on-failure
+    build:
+      context: ./
+      dockerfile: ./dispatcher/Dockerfile
+    environment:
+      DISPATCHER_PORT: ${DISPATCHER_PORT}
+      BOT_USERNAME: ${BOT_USERNAME}
+      BOT_TOKEN: ${BOT_TOKEN}
+      RABBIT_HOST: ${RABBIT_HOST}
+      RABBIT_PORT: ${RABBIT_PORT}
+      RABBIT_USERNAME: ${RABBIT_USERNAME}
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD}
+      RABBIT_TEXT_MESSAGE_UPDATE_QUEUE: ${RABBIT_TEXT_MESSAGE_UPDATE_QUEUE}
+      RABBIT_ANSWER_MESSAGE_QUEUE: ${RABBIT_ANSWER_MESSAGE_QUEUE}
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '100m'
+        max-file: '3'
+    depends_on:
+      rabbit-mq:
+        condition: service_healthy
+    networks:
+      - specking-club-network
+
+  node:
+    container_name: node
+#    restart: on-failure
+    build:
+      context: ./
+      dockerfile: ./node/Dockerfile
+    environment:
+      NODE_PORT: ${NODE_PORT}
+      
+      RABBIT_HOST: ${RABBIT_HOST}
+      RABBIT_PORT: ${RABBIT_PORT}
+      RABBIT_USERNAME: ${RABBIT_USERNAME}
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD}
+      RABBIT_TEXT_MESSAGE_UPDATE_QUEUE: ${RABBIT_TEXT_MESSAGE_UPDATE_QUEUE}
+      RABBIT_ANSWER_MESSAGE_QUEUE: ${RABBIT_ANSWER_MESSAGE_QUEUE}
+      
+      POSTGRES_URL: ${POSTGRES_URL}
+      POSTGRES_USER: ${POSTGRES_USER}
+      
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '100m'
+        max-file: '3'
+    networks:
+      - specking-club-network
+    depends_on:
+      rabbit-mq:
+        condition: service_healthy
+      postgres-db:
+        condition: service_healthy
+
+  rabbit-mq:
+    image: rabbitmq:3.11.0-management
+    container_name: rabbit-mq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBIT_USERNAME}
+      RABBITMQ_DEFAULT_PASS: ${RABBIT_PASSWORD}
+    ports:
+      - ${RABBIT_AMQP_PORT_MAPPING}
+      - ${RABBIT_GUI_PORT_MAPPING}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - specking-club-network
+#    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "--silent", "--quiet", "ping" ]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 30s
+  postgres-db:
+    image: postgres:latest
+    hostname: postgres-db
+    container_name: postgres-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DATABASE}
+    ports:
+      - ${POSTGRES_PORT_MAPPING}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - specking-club-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DATABASE} -h 127.0.0.1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+#    restart: unless-stopped
+networks:
+  specking-club-network:
+    driver: bridge
+volumes:
+  rabbitmq_data:
+    driver: local
+  postgres_data:
+    driver: local

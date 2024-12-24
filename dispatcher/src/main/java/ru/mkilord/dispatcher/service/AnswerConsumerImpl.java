@@ -8,7 +8,6 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import ru.mkilord.dispatcher.controller.UpdateController;
 
 import static lombok.AccessLevel.PRIVATE;
-import static ru.mkilord.model.RabbitQueue.ANSWER_MESSAGE;
 
 @Service
 @FieldDefaults(level = PRIVATE, makeFinal = true)
@@ -16,7 +15,7 @@ import static ru.mkilord.model.RabbitQueue.ANSWER_MESSAGE;
 public class AnswerConsumerImpl implements AnswerConsumer {
     UpdateController updateController;
 
-    @RabbitListener(queues = ANSWER_MESSAGE)
+    @RabbitListener(queues = "${spring.rabbitmq.queues.answer-message}")
     @Override
     public void consume(SendMessage sendMessage) {
         updateController.sendAnswerMessage(sendMessage);

@@ -6,13 +6,16 @@ spring:
       enabled: false
 
   rabbitmq:
-    port: ${RABBITMQ_PORT}
-    host: ${RABBITMQ_HOST}
-    username: ${RABBITMQ_USERNAME}
-    password: ${RABBITMQ_PASSWORD}
+    port: ${RABBIT_PORT}
+    host: ${RABBIT_HOST}
+    username: ${RABBIT_USERNAME}
+    password: ${RABBIT_PASSWORD}
+    queues:
+      text-message-update: ${RABBIT_TEXT_MESSAGE_UPDATE_QUEUE}
+      answer-message: ${RABBIT_ANSWER_MESSAGE_QUEUE}
 
 server:
-  port: ${DISPATCHER_PORT}
+  port: ${DISPATCHER_PORT:8084}
 
 bot:
   token: ${BOT_TOKEN}

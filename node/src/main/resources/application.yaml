@@ -3,10 +3,25 @@ spring:
     name: node
 
   rabbitmq:
-    port: ${RABBITMQ_PORT}
-    host: ${RABBITMQ_HOST}
-    username: ${RABBITMQ_USERNAME}
-    password: ${RABBITMQ_PASSWORD}
+    port: ${RABBIT_PORT}
+    host: ${RABBIT_HOST}
+    username: ${RABBIT_USERNAME}
+    password: ${RABBIT_PASSWORD}
+    queues:
+      text-message-update: ${RABBIT_TEXT_MESSAGE_UPDATE_QUEUE}
+      answer-message: ${RABBIT_ANSWER_MESSAGE_QUEUE}
+
+  datasource:
+    url: ${POSTGRES_URL}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate.dialect: org.hibernate.dialect.PostgreSQLDialect
 
 server:
-  port: ${NODE_PORT}
+  port: ${NODE_PORT:8085}
