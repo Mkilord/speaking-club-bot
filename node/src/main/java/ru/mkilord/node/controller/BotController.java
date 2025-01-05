@@ -13,6 +13,7 @@ import ru.mkilord.node.command.menu.Item;
 import ru.mkilord.node.command.menu.Menu;
 import ru.mkilord.node.model.Role;
 import ru.mkilord.node.service.ProducerService;
+import ru.mkilord.node.service.UserService;
 import ru.mkilord.node.util.TextUtils;
 
 import java.util.ArrayList;
@@ -32,6 +33,7 @@ public class BotController implements CommandCatalog {
 
     CommandHandler commandHandler;
     ProducerService producerService;
+    UserService userService;
 
     @PostConstruct
     public void init() {
@@ -65,8 +67,25 @@ public class BotController implements CommandCatalog {
      *   /help - выводит список доступных команд.
      *
      *MEMBER - это уже зарегистрированный пользователь, который может полноценно взаимодействовать с клубами.
-     *  /profile
+     *  /profile - профиль пользователя.
+     *  /feedback - текущие опросы.
+     *  /my_meets - текущие встречи.
+     *  /clubs - просмотр клубов, подписка на уведомления и на встречу
+     *
+     *ORGANIZER - Это тот кто создаёт встречи. Закреплён за клубом.
+     * /control_clubs - отображает список клубов которые он контролирует
+     *      К: Создать встречу. -> Тема встречи -> Дата -> Время. ?> Запустить рассылку
+     * /control_meeting - отображает все предстоящие встречи.
+     *      В: Запустить рассылку. (Уведомить подписчиков клуба)
+     *      В: Получить список с участниками.
+     *      В: Отметить проведённой. -> Запустить опрос.
+     *      В: Отменить.
+     *      В: Удалить.
+     * /control_feedback - отображает общую оценку клуба. И оценки последних 5 встреч.
+     *MANAGER - Это тот кто создаёт клубы. И закрепляет за ними сотрудников.
+     *
      *  */
+
 
     private void addCommands(List<Command> list, Command... commands) {
         list.addAll(List.of(commands));
@@ -149,11 +168,13 @@ public class BotController implements CommandCatalog {
                     var menu = Menu.builder()
                             .items(items)
                             .build();
+                    context.setMenu(menu);
                     send(context, "Выберите клуб", menu.showMenu());
                 }).action(context -> {
+                    if (Menu.invalidItem(context.getMenu(), context.getText())) return INVALID;
                     var club = context.getText();
                     context.put("club", club);
-                    send(context, "Вы выбрали клуб: " + club);
+//                    send(context, "Вы выбрали клуб: " + club);
                     return NEXT;
                 });
         var commands = new ArrayList<Command>();
@@ -184,27 +205,34 @@ public class BotController implements CommandCatalog {
                         .action(context -> {
                             send(context, "Привет! Давай познакомимся! 😊");
                         })
-                        .input(usernameInput/*, phoneInput, emailInput*/)
+                        .input(usernameInput, phoneInput, emailInput)
                         .post(context -> {
-                            var firstName = context.getValue("firstName");
-                            var lastName = context.getValue("lastName");
-                            var middleName = context.getValue("middleName");
-                            var email = context.getValue("email");
-                            var phone = context.getValue("phone");
+                            var user = context.getUser();
+                            user.setFirstName(context.getValue("firstName"));
+                            user.setLastName(context.getValue("lastName"));
+                            user.setMiddleName(context.getValue("middleName"));
+                            user.setEmail(context.getValue("email"));
+                            user.setPhone(context.getValue("phone"));
+                            user.setRole(Role.MEMBER);
+                            context.setUser(user);
+                            userService.update(user);
                             send(context, """
                                     ✅ Данные записаны!
                                     
                                     Ваши данные:
                                     📛 ФИО: %s %s %s
                                     📱 Телефон: %s
-                                    📧 Email: %s""".formatted(firstName, lastName, middleName, phone, email));
+                                    📧 Email: %s""".formatted(user.getFirstName(), user.getLastName(), user.getMiddleName(),
+                                    user.getPhone(), user.getEmail()));
                             send(context, "ℹ️ Чтобы узнать команды бота, используй /help\nили кнопку ниже! 🤖", helpMenu.showMenu());
-                            context.setUserRole(Role.MEMBER.toString());
                         }).build());
 
 
         //Member Commands
-        var clubMenu = Menu.builder()
+        //Проблема в том что когда это динамическое меню мы никак не можем понять
+        //Кликнул ли он по меню или ввёл команду.
+        //Нужно как то отличить клик.
+        var clubOptionsMenu = Menu.builder()
                 .items(new Item("Встречи", context -> {
                     //Запрашиваем доступные встречи.
                     var meets = new ArrayList<>(List.of("20.11.2024 18:00", "24.11.2024 12:20"));
@@ -212,6 +240,7 @@ public class BotController implements CommandCatalog {
                     var menu = Menu.builder()
                             .items(items)
                             .build();
+                    context.setMenu(menu);
                     send(context, "Доступные встречи: ", menu.showMenu());
                     return NEXT;
                 }), new Item("Подписаться", context -> {
@@ -225,15 +254,26 @@ public class BotController implements CommandCatalog {
                 }))
                 .build();
 
+
+        var clubControlOptionsMenu = Menu.builder()
+                .items(new Item("Изменить", context -> {
+                            return null;
+                        }),
+                        new Item("Удалить", context -> {
+                            return null;
+                        })).build();
+
+
         var clubsCommand = Command.create("/clubs")
                 .access(Role.MEMBER)
                 .help("Записаться на встречу, получить информацию о клубе.")
                 .input(inputSelectClub)
                 .input(Reply.builder().preview(context -> {
                     var club = context.getValue("club");
-                    send(context, club + " клуб:", clubMenu.showMenu());
-                }).action(clubMenu::onClick))
+                    send(context, club + " клуб:", clubOptionsMenu.showMenu());
+                }).action(clubOptionsMenu::onClick))
                 .input(context -> {
+                    if (Menu.invalidItem(context.getMenu(), context.getText())) return INVALID;
                     //Зарегистрировать встречу
                     send(context, "Отметил что ты придёшь на встречу. " + context.getText());
                     return TERMINATE;
@@ -262,21 +302,18 @@ public class BotController implements CommandCatalog {
         var profileMenu = Menu.builder()
                 .items(new Item("/edit_profile", "Изменить"))
                 .build();
+
         var profile = Command.create("/profile")
                 .help("Информация о твоём профиле.")
                 .access(Role.MEMBER_AND_EMPLOYEES)
                 .action(context -> {
-                    send(context, "Твоя роль: %s".formatted(context.getUserRole()));
-                    var firstName = context.getValue("firstName");
-                    var lastName = context.getValue("lastName");
-                    var middleName = context.getValue("middleName");
-                    var email = context.getValue("email");
-                    var phone = context.getValue("phone");
+                    var user = context.getUser();
                     send(context, """
                             Ваши данные:
                             📛 ФИО: %s %s %s
                             📱 Телефон: %s
-                            📧 Email: %s""".formatted(firstName, lastName, middleName, phone, email), profileMenu.showMenu());
+                            📧 Email: %s""".formatted(user.getFirstName(), user.getLastName(),
+                            user.getMiddleName(), user.getPhone(), user.getEmail()), profileMenu.showMenu());
                 }).build();
         var editProfile = Command.create("/edit_profile")
                 .access(Role.MEMBER_AND_EMPLOYEES)
@@ -284,20 +321,30 @@ public class BotController implements CommandCatalog {
                     send(context, "Познакомимся вновь!");
                 })
                 .input(usernameInput, phoneInput, emailInput)
-                .post(context -> send(context, "✅ Данные записаны!")).build();
+                .post(context -> {
+                    var user = context.getUser();
+                    user.setFirstName(context.getValue("firstName"));
+                    user.setLastName(context.getValue("lastName"));
+                    user.setMiddleName(context.getValue("middleName"));
+                    user.setEmail(context.getValue("email"));
+                    user.setPhone(context.getValue("phone"));
+                    context.setUser(user);
+                    userService.update(user);
+                    send(context, "✅ Данные записаны!");
+                }).build();
 
         // TODO 2024-12-24 13:53: убрать при релизе
         var debugMenu = Menu.builder().items(
                 new Item("Получить Модератора", context -> {
-                    context.setUserRole(Role.MODERATOR.toString());
+                    userService.grantRole(context.getUser().getTelegramId(), Role.MODERATOR);
                     return TERMINATE;
                 }),
                 new Item("Получить Участника", context -> {
-                    context.setUserRole(Role.MEMBER.toString());
+                    userService.grantRole(context.getUser().getTelegramId(), Role.MEMBER);
                     return TERMINATE;
                 }),
                 new Item("Получить Организатор", context -> {
-                    context.setUserRole(Role.ORGANIZER.toString());
+                    userService.grantRole(context.getUser().getTelegramId(), Role.ORGANIZER);
                     return TERMINATE;
                 })
         ).build();
@@ -317,29 +364,52 @@ public class BotController implements CommandCatalog {
                                     О клубе:
                                     %s
                                     """.formatted(clubName, clubDescription));
+                            //Создать клуб
                             send(context, "Клуб создан!");
                         })
                 ).build();
 
+
+        /*     *ORGANIZER - Это тот кто создаёт встречи. Закреплён за клубом.
+         * /control_clubs - отображает список клубов которые он контролирует
+         *      К: Создать встречу. -> Тема встречи -> Дата -> Время. ?> Запустить рассылку
+         * /control_meeting - отображает все предстоящие встречи.
+         *      В: Запустить рассылку. (Уведомить подписчиков клуба)
+         *      В: Получить список с участниками.
+         *      В: Изменить.
+         *      В: Отметить проведённой. -> Запустить опрос.
+         *      В: Отменить.
+         *      В: Удалить.*/
 //        var clubsControlMenu = Menu.builder().items(new Item(""))
+        var organizerClubMenu = Menu.builder()
+                .items(new Item("Создать встречу", context1 -> {
+                    send(context1, "Создаю встречу");
+                    return NEXT;
+                }))
+                .build();
 
-        var controlClubs = Command.create("/control_clubs").access(Role.USER)
+        var controlClubs = Command.create("/control_clubs").access(Role.ALL)
+                .help("Позволяет создавать встречи для клубов.")
                 .input(inputSelectClub)
-                .input(context -> {
-                    var club = context.getValue("club");
-                    //Удалить. Изменить.
+                .input(Reply.builder()
+                        .preview(context -> {
+                            var club = context.getValue("club");
+                            send(context, "Вы выбрали клуб: " + club, organizerClubMenu.showMenu());
+                            context.setMenu(organizerClubMenu);
+                        })
+                        .action(organizerClubMenu::onClick))
+                .build();
 
-                }).build();
-
-
+        addCommands(commands, controlClubs);
         addCommands(commands, createClub, debug, clubsCommand, feedback, profile, editProfile);
         var help = Command.create("/help")
                 .access(Role.ALL)
                 .action(context -> {
                     var strBuilder = new StringBuilder();
+                    var userRole = context.getUser().getRole();
                     commands.stream()
                             .filter(command ->
-                                    (command.getRoles().contains(context.getUserRole()))
+                                    (command.getRoles().contains(userRole.toString()))
                                             && Objects.nonNull(command.getInfo()))
                             .forEach(command -> strBuilder
                                     .append(" - ")
