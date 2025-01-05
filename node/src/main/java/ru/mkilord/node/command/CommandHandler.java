@@ -1,10 +1,13 @@
 package ru.mkilord.node.command;
 
+import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import ru.mkilord.node.model.Role;
+import ru.mkilord.node.model.User;
+import ru.mkilord.node.service.UserService;
 
 import java.util.HashMap;
 import java.util.List;
@@ -18,12 +21,14 @@ import static lombok.AccessLevel.PRIVATE;
 @Slf4j
 @Service
 @FieldDefaults(level = PRIVATE)
+@RequiredArgsConstructor
 public class CommandHandler {
 
     Map<String, Reply> replyMap;
     List<Command> commandsList;
 
     final Map<Long, MessageContext> contextMap = new HashMap<>();
+    final UserService userService;
 
     Consumer<MessageContext> unknownCommandCallback;
 
@@ -43,22 +48,46 @@ public class CommandHandler {
         return update.getMessage().getChatId();
     }
 
+    private Long getUserId(Update update) {
+        if (update.hasCallbackQuery()) {
+            return update.getCallbackQuery().getFrom().getId();
+        }
+        return update.getMessage().getChatId();
+    }
+
     private MessageContext getContext(Update update) {
         var chatId = getChatId(update);
         return Optional.ofNullable(contextMap.get(chatId))
-                .map(context -> {
-                    context.setChatId(chatId);
-                    return context.setUpdate(update);
-                })
+                .map(context -> context.setUpdate(update))
                 .orElseGet(() -> createContext(update));
     }
 
     private MessageContext createContext(Update update) {
-        var context = MessageContext.builder()
-                .chatId(getChatId(update))
-                .userRole(Role.USER.toString())
-                .update(update)
-                .build();
+        var telegramId = getUserId(update);
+        var chatId = getChatId(update);
+        var user = userService.findById(telegramId);
+        var context = user.map(user1 -> {
+                    //Нужно сделать проверку на смену никнейма.
+                    if (!user1.getChatId().equals(chatId)) {
+                        user1.setChatId(chatId);
+                        userService.update(user1);
+                    }
+                    return MessageContext.builder()
+                            .user(user1)
+                            .update(update)
+                            .build();
+                })
+                .orElseGet(() -> {
+                    User newUser = new User();
+                    newUser.setRole(Role.USER);
+                    newUser.setTelegramId(telegramId);
+                    newUser.setChatId(chatId);
+                    newUser = userService.save(newUser);
+                    return MessageContext.builder()
+                            .user(newUser)
+                            .update(update)
+                            .build();
+                });
         contextMap.put(context.getChatId(), context);
         return context;
     }
