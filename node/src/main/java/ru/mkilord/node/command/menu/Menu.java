@@ -25,7 +25,17 @@ public class Menu {
 
     List<Item> items;
 
+    public static boolean invalidItem(Menu menu, String id){
+        return menu.items.stream().noneMatch(item -> item.getId().equals(id));
+    }
+
+    public static boolean notMenuOnClick(MessageContext context) {
+        return !context.getUpdate().hasCallbackQuery();
+    }
+
     public Step onClick(MessageContext context) {
+        var notMenuClick = notMenuOnClick(context);
+        if (notMenuClick) return Step.INVALID;
         return items.stream().filter(item -> Objects.equals(item.getId(), context.getText()))
                 .findFirst()
                 .flatMap(Item::getOnClick)
