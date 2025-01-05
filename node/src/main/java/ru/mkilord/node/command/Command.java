@@ -47,9 +47,9 @@ public class Command {
 
     public boolean matchConditions(MessageContext context) {
         var messageText = context.getText();
-        var role = context.getUserRole();
+        var role = context.getUser().getRole();
         var isCommandMatch = getName().equals(messageText);
-        return isCommandMatch && roles.contains(role);
+        return isCommandMatch && roles.contains(role.toString());
     }
 
     private void showReplyPreview(MessageContext context) {
@@ -158,6 +158,7 @@ public class Command {
             createReply(replyBuilder);
             return this;
         }
+
         /*Будет выполнен, после применения последнего Reply в очереди*/
         public Builder post(Consumer<MessageContext> postAction) {
             this.post = postAction;
