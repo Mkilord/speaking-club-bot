@@ -6,17 +6,17 @@ spring:
       enabled: false
 
   rabbitmq:
-    port: ${RABBIT_PORT}
-    host: ${RABBIT_HOST}
-    username: ${RABBIT_USERNAME}
-    password: ${RABBIT_PASSWORD}
+    port: ${RABBIT_PORT:5673}
+    host: ${RABBIT_HOST:localhost}
+    username: ${RABBIT_USERNAME:lord}
+    password: ${RABBIT_PASSWORD:admin}
     queues:
-      text-message-update: ${RABBIT_TEXT_MESSAGE_UPDATE_QUEUE}
-      answer-message: ${RABBIT_ANSWER_MESSAGE_QUEUE}
+      text-message-update: ${RABBIT_TEXT_MESSAGE_UPDATE_QUEUE:message_update}
+      answer-message: ${RABBIT_ANSWER_MESSAGE_QUEUE:message_answer}
 
 server:
   port: ${DISPATCHER_PORT:8084}
 
 bot:
-  token: ${BOT_TOKEN}
-  username: ${BOT_USERNAME}
+  token: ${BOT_TOKEN:7857891175:AAF3AKHS-GqzpnuvGc619PRV2fEpIP-4Nr4}
+  username: ${BOT_USERNAME:speaking_club_6666_bot}
