@@ -1,10 +1,11 @@
 package ru.mkilord.node.command;
 
 import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 import lombok.experimental.FieldDefaults;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import ru.mkilord.node.command.menu.Menu;
+import ru.mkilord.node.model.User;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -14,17 +15,21 @@ import static lombok.AccessLevel.PRIVATE;
 
 @Builder
 @FieldDefaults(level = PRIVATE)
-@Getter
-@Setter
+@Data
 public class MessageContext {
     Update update;
 
-    long chatId;
-    String userRole;
-
     String replyId;
 
+    Menu menu;
+
     Map<String, String> values;
+
+    User user;
+
+    public long getChatId() {
+        return user.getChatId();
+    }
 
     public String getText() {
         if (update.hasCallbackQuery()) {
@@ -52,6 +57,7 @@ public class MessageContext {
 
     public void clear() {
         replyId = null;
+        menu = null;
         if (Objects.nonNull(values)) values.clear();
     }
 
