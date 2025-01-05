@@ -6,6 +6,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import static lombok.AccessLevel.PRIVATE;
 
 @Entity
@@ -36,4 +39,7 @@ public class User {
 
     @Column(unique = true)
     String phone;
+
+    @ManyToMany(mappedBy = "subscribers")
+    private Set<Club> clubs = new HashSet<>();
 }
