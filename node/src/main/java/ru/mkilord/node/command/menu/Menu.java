@@ -23,6 +23,11 @@ public class Menu {
         return keyboardMarkup;
     }
 
+    public String getItemNameByKey(String key) {
+        return items.stream().filter(item -> Objects.equals(item.getId(), key))
+                .findFirst().map(Item::getText).orElseThrow(NullPointerException::new);
+    }
+
     List<Item> items;
 
     public static boolean invalidItem(Menu menu, String id) {
