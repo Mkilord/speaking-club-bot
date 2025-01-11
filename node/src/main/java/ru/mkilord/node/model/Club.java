@@ -2,6 +2,7 @@ package ru.mkilord.node.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -16,6 +17,7 @@ import static lombok.AccessLevel.PRIVATE;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = PRIVATE)
+@Builder
 public class Club {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,4 +33,8 @@ public class Club {
             inverseJoinColumns = @JoinColumn(name = "user_id")
     )
     Set<User> subscribers = new HashSet<>();
+
+    @OneToMany(mappedBy = "club")
+    Set<Meet> meets = new HashSet<>();
+
 }
