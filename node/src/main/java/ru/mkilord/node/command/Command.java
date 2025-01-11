@@ -52,10 +52,6 @@ public class Command {
         return isCommandMatch && roles.contains(role.toString());
     }
 
-    private void showReplyPreview(MessageContext context) {
-        reply.getPreview().ifPresent(preview -> preview.accept(context));
-    }
-
     private void terminate(MessageContext context) {
         context.clear();
     }
@@ -66,7 +62,11 @@ public class Command {
 
     private void tryGoToReply(MessageContext context) {
         getReply().ifPresentOrElse(reply -> {
-            showReplyPreview(context);
+            var nextStep = reply.getPreview().map(preview -> preview.apply(context));
+            if (nextStep.isPresent() && nextStep.get() == Step.TERMINATE) {
+                terminate(context);
+                return;
+            }
             context.setReplyId(reply.getId());
         }, () -> terminate(context));
     }
