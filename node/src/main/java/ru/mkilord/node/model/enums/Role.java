@@ -1,4 +1,4 @@
-package ru.mkilord.node.model;
+package ru.mkilord.node.model.enums;
 
 import lombok.experimental.FieldDefaults;
 
