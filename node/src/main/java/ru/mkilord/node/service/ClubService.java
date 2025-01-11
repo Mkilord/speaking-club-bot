@@ -3,6 +3,7 @@ package ru.mkilord.node.service;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.mkilord.node.model.Club;
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -22,56 +24,86 @@ public class ClubService {
     ClubRepository clubRepository;
     UserService userService;
 
-    public List<Club> findAll() {
+    public List<Club> getAll() {
+        log.info("Получение всех клубов");
         return clubRepository.findAll();
     }
 
-    public Optional<Club> findById(long id) {
+    public Optional<Club> getClubById(long id) {
+        log.info("Поиск клуба с id {}", id);
         return clubRepository.findById(id);
     }
 
     public Club save(Club club) {
+        log.info("Сохранение клуба: {}", club.getName());
         return clubRepository.save(club);
     }
 
-    public Club update(long id, Club clubDetails) {
-        return clubRepository.findById(id).map(club -> {
+    public Optional<Club> update(long id, Club clubDetails) {
+        return getClubById(id).map(club -> {
             club.setName(clubDetails.getName());
             club.setDescription(clubDetails.getDescription());
+            log.info("Обновление клуба с id {}: {}", id, clubDetails.getName());
             return clubRepository.save(club);
-        }).orElseThrow(() -> new RuntimeException("Club not found with id " + id));
+        });
     }
 
+    public Optional<Club> addSubscriber(Long clubId, Long userId) {
+        var clubOpt = getClubById(clubId);
+        var userOpt = userService.getUserById(userId);
 
-    @Transactional
-    public void addSubscriber(Long clubId, Long userId) {
-        var club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new IllegalArgumentException("Club not found"));
-        var user = userService.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        if (clubOpt.isEmpty() || userOpt.isEmpty()) {
+            log.warn("Клуб или пользователь не найден: clubId={}, userId={}", clubId, userId);
+            return Optional.empty();
+        }
 
-        club.getSubscribers().add(user);
-        clubRepository.save(club);
+        var club = clubOpt.get();
+        var user = userOpt.get();
+        if (club.getSubscribers().add(user)) {
+            log.info("Пользователь {} добавлен в подписчики клуба {}", user.getUsername(), club.getName());
+            return Optional.of(clubRepository.save(club));
+        } else {
+            log.warn("Пользователь {} уже подписан на клуб {}", user.getUsername(), club.getName());
+            return Optional.empty();
+        }
     }
 
-    @Transactional
-    public void removeSubscriber(Long clubId, Long userId) {
-        var club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new IllegalArgumentException("Club not found"));
-        var user = userService.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    public Optional<Club> removeSubscriber(Long clubId, Long userId) {
+        var clubOpt = getClubById(clubId);
+        var userOpt = userService.getUserById(userId);
 
-        club.getSubscribers().remove(user);
-        clubRepository.save(club);
+        if (clubOpt.isEmpty() || userOpt.isEmpty()) {
+            log.warn("Клуб или пользователь не найден: clubId={}, userId={}", clubId, userId);
+            return Optional.empty();
+        }
+
+        var club = clubOpt.get();
+        var user = userOpt.get();
+        if (club.getSubscribers().remove(user)) {
+            log.info("Пользователь {} удалён из подписчиков клуба {}", user.getUsername(), club.getName());
+            return Optional.of(clubRepository.save(club));
+        } else {
+            log.warn("Пользователь {} не подписан на клуб {}", user.getUsername(), club.getName());
+            return Optional.empty();
+        }
     }
 
-    public Set<User> getSubscribers(Long clubId) {
-        var club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new IllegalArgumentException("Club not found"));
-        return club.getSubscribers();
+    public Optional<Set<User>> getSubscribers(Long clubId) {
+        return getClubById(clubId).map(club -> {
+            log.info("Получение списка подписчиков клуба {}", club.getName());
+            return club.getSubscribers();
+        });
     }
 
-    public void deleteById(long id) {
-        clubRepository.deleteById(id);
+    public boolean deleteById(long id) {
+        var clubOpt = getClubById(id);
+        if (clubOpt.isPresent()) {
+            log.info("Удаление клуба с id {}", id);
+            clubRepository.deleteById(id);
+            return true;
+        }
+        log.warn("Клуб с id {} не найден", id);
+        return false;
     }
 }
+
