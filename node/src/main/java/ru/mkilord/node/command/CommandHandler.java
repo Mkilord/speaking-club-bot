@@ -5,7 +5,7 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import ru.mkilord.node.model.Role;
+import ru.mkilord.node.model.enums.Role;
 import ru.mkilord.node.model.User;
 import ru.mkilord.node.service.UserService;
 
@@ -65,7 +65,7 @@ public class CommandHandler {
     private MessageContext createContext(Update update) {
         var telegramId = getUserId(update);
         var chatId = getChatId(update);
-        var user = userService.findById(telegramId);
+        var user = userService.getUserById(telegramId);
         var context = user.map(user1 -> {
                     //Нужно сделать проверку на смену никнейма.
                     if (!user1.getChatId().equals(chatId)) {
