@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import ru.mkilord.node.model.enums.Role;
 import ru.mkilord.node.model.User;
-import ru.mkilord.node.service.UserService;
+import ru.mkilord.node.service.impl.UserService;
 
 import java.util.HashMap;
 import java.util.List;
