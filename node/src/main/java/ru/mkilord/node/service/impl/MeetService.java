@@ -11,6 +11,7 @@ import ru.mkilord.node.model.User;
 import ru.mkilord.node.model.enums.MeetStatus;
 import ru.mkilord.node.repository.MeetRepository;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -49,7 +50,8 @@ public class MeetService {
     public Optional<Meet> publicMeetByIdWithNotification(long id) {
         return getMeetById(id).map(meet -> {
             meet.setStatus(MeetStatus.PUBLISHED);
-            notificationService.notifyUsersAboutMeet(meet, MeetStatus.PUBLISHED);
+            var subscribers = new ArrayList<>(meet.getClub().getSubscribers());
+            notificationService.notifyUsersAboutMeet(subscribers, NotificationService.generateNotificationFrom(meet));
             return meet;
         });
     }
@@ -58,7 +60,8 @@ public class MeetService {
     public Optional<Meet> cancelMeetByIdWithNotification(long id) {
         return getMeetById(id).map(meet -> {
             meet.setStatus(MeetStatus.CANCELLED);
-            notificationService.notifyUsersAboutMeet(meet, MeetStatus.CANCELLED);
+            var subscribers = new ArrayList<>(meet.getClub().getSubscribers());
+            notificationService.notifyUsersAboutMeet(subscribers, NotificationService.generateNotificationFrom(meet));
             return meet;
         });
     }
