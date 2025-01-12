@@ -1,4 +1,4 @@
-package ru.mkilord.node.service;
+package ru.mkilord.node.service.impl;
 
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -10,9 +10,9 @@ import ru.mkilord.node.model.Club;
 import ru.mkilord.node.model.User;
 import ru.mkilord.node.repository.ClubRepository;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 @Slf4j
 @Service
@@ -22,7 +22,6 @@ import java.util.Set;
 public class ClubService {
 
     ClubRepository clubRepository;
-    UserService userService;
 
     public List<Club> getAll() {
         log.info("Получение всех клубов");
@@ -39,62 +38,59 @@ public class ClubService {
         return clubRepository.save(club);
     }
 
+    @Transactional
     public Optional<Club> update(long id, Club clubDetails) {
         return getClubById(id).map(club -> {
             club.setName(clubDetails.getName());
             club.setDescription(clubDetails.getDescription());
             log.info("Обновление клуба с id {}: {}", id, clubDetails.getName());
-            return clubRepository.save(club);
+            return club;
         });
     }
 
-    public Optional<Club> addSubscriber(Long clubId, Long userId) {
+    @Transactional
+    public Optional<Club> addSubscriber(Long clubId, User user) {
         var clubOpt = getClubById(clubId);
-        var userOpt = userService.getUserById(userId);
-
-        if (clubOpt.isEmpty() || userOpt.isEmpty()) {
-            log.warn("Клуб или пользователь не найден: clubId={}, userId={}", clubId, userId);
+        if (clubOpt.isEmpty()) {
+            log.warn("Клуб или пользователь не найден: clubId={}, userId={}", clubId, user.getTelegramId());
             return Optional.empty();
         }
-
         var club = clubOpt.get();
-        var user = userOpt.get();
+
         if (club.getSubscribers().add(user)) {
             log.info("Пользователь {} добавлен в подписчики клуба {}", user.getUsername(), club.getName());
-            return Optional.of(clubRepository.save(club));
+            return Optional.of(club);
         } else {
             log.warn("Пользователь {} уже подписан на клуб {}", user.getUsername(), club.getName());
             return Optional.empty();
         }
     }
 
-    public Optional<Club> removeSubscriber(Long clubId, Long userId) {
+    public Optional<Club> removeSubscriber(Long clubId, User user) {
         var clubOpt = getClubById(clubId);
-        var userOpt = userService.getUserById(userId);
-
-        if (clubOpt.isEmpty() || userOpt.isEmpty()) {
-            log.warn("Клуб или пользователь не найден: clubId={}, userId={}", clubId, userId);
+        if (clubOpt.isEmpty()) {
+            log.warn("Клуб или пользователь не найден: clubId={}, userId={}", clubId, user.getTelegramId());
             return Optional.empty();
         }
 
         var club = clubOpt.get();
-        var user = userOpt.get();
         if (club.getSubscribers().remove(user)) {
             log.info("Пользователь {} удалён из подписчиков клуба {}", user.getUsername(), club.getName());
-            return Optional.of(clubRepository.save(club));
+            return Optional.of(club);
         } else {
             log.warn("Пользователь {} не подписан на клуб {}", user.getUsername(), club.getName());
             return Optional.empty();
         }
     }
 
-    public Optional<Set<User>> getSubscribers(Long clubId) {
+    public List<User> getSubscribers(Long clubId) {
         return getClubById(clubId).map(club -> {
             log.info("Получение списка подписчиков клуба {}", club.getName());
-            return club.getSubscribers();
-        });
+            return new ArrayList<>(club.getSubscribers());
+        }).orElse(new ArrayList<>());
     }
 
+    @Transactional
     public boolean deleteById(long id) {
         var clubOpt = getClubById(id);
         if (clubOpt.isPresent()) {

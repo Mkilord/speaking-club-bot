@@ -1,9 +1,10 @@
-package ru.mkilord.node.service;
+package ru.mkilord.node.service.impl;
 
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import ru.mkilord.node.model.User;
 import ru.mkilord.node.model.enums.Role;
 import ru.mkilord.node.repository.UserRepository;
@@ -27,6 +28,7 @@ public class UserService {
     public Optional<User> getUserById(Long id) {
         return userRepository.findById(id);
     }
+
     public User save(@Valid User user) {
         return userRepository.save(user);
     }
@@ -35,10 +37,11 @@ public class UserService {
         userRepository.deleteById(id);
     }
 
+    @Transactional
     public Optional<User> grantRole(Long userId, Role role) {
         return getUserById(userId).map(user -> {
             user.setRole(role);
-            return userRepository.save(user);
+            return user;
         });
     }
 
