@@ -3,15 +3,14 @@ package ru.mkilord.node.service.impl;
 import lombok.AllArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.Hibernate;
-import org.hibernate.LazyInitializationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import ru.mkilord.node.model.Meet;
 import ru.mkilord.node.model.User;
-import ru.mkilord.node.model.enums.MeetStatus;
 import ru.mkilord.node.service.ProducerService;
+
+import java.util.List;
 
 import static lombok.AccessLevel.PRIVATE;
 
@@ -24,15 +23,9 @@ public class NotificationService {
     ProducerService producerService;
 
     @Transactional
-    public void notifyUsersAboutMeet(Meet meet, MeetStatus status) {
-        if (!Hibernate.isInitialized(meet.getClub().getSubscribers())) {
-            throw new LazyInitializationException("Subscribers not initialized for meet with ID: " + meet.getId());
-        }
-        var club = meet.getClub();
-        var subscribers = club.getSubscribers();
-        subscribers.forEach(user -> sendNotification(user, generateNotificationMessage(meet, status)));
+    public void notifyUsersAboutMeet(List<User> subscribers, String message) {
+        subscribers.forEach(user -> sendNotification(user, message));
     }
-
 
     private void sendNotification(User user, String message) {
         var outMsg = SendMessage.builder()
@@ -44,13 +37,16 @@ public class NotificationService {
 
     }
 
-    private String generateNotificationMessage(Meet meet, MeetStatus meetStatus) {
+    public static String generateNotificationFrom(Meet meet) {
         var message = "Здравствуйте! У клуба %s назначена новая встреча: %s на %s %s. Не пропустите!";
+        var meetStatus = meet.getStatus();
+
         switch (meetStatus) {
             case CANCELLED -> message = "Здравствуйте! У клуба %s встреча: %s на %s %s отменена!";
             case PUBLISHED -> message = "Здравствуйте! У клуба %s назначена новая встреча: %s на %s %s. Не пропустите!";
             default -> throw new RuntimeException("Undetected meet status: " + meetStatus);
         }
+
         return String.format(
                 message,
                 meet.getClub().getName(),
