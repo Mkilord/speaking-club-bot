@@ -9,6 +9,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import ru.mkilord.node.model.Meet;
 import ru.mkilord.node.model.User;
 import ru.mkilord.node.service.ProducerService;
+import ru.mkilord.node.util.MeetFormatter;
 
 import java.util.List;
 
@@ -37,23 +38,19 @@ public class NotificationService {
 
     }
 
-    public static String generateNotificationFrom(Meet meet) {
-        var message = "Здравствуйте! У клуба %s назначена новая встреча: %s на %s %s. Не пропустите!";
+    public static String generateNotificationFromByStatus(Meet meet) {
+
+        var message = "Здравствуйте! У клуба " + meet.getClub().getName() + " назначена новая встреча:" + MeetFormatter.formatMeetWithOutStatus(meet) + ". Не пропустите!";
         var meetStatus = meet.getStatus();
 
         switch (meetStatus) {
-            case CANCELLED -> message = "Здравствуйте! У клуба %s встреча: %s на %s %s отменена!";
-            case PUBLISHED -> message = "Здравствуйте! У клуба %s назначена новая встреча: %s на %s %s. Не пропустите!";
+            case CANCELLED ->
+                    message = "Здравствуйте! У клуба " + meet.getClub().getName() + " встреча: " + MeetFormatter.formatMeetWithOutStatus(meet) + " отменена!";
+            case PUBLISHED ->
+                    message = "Здравствуйте! У клуба " + meet.getClub().getName() + " назначена новая встреча: " + MeetFormatter.formatMeetWithOutStatus(meet) + " Не пропустите!";
             default -> throw new RuntimeException("Undetected meet status: " + meetStatus);
         }
-
-        return String.format(
-                message,
-                meet.getClub().getName(),
-                meet.getName(),
-                meet.getDate(),
-                meet.getTime()
-        );
+        return message;
     }
 }
 
