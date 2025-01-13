@@ -23,7 +23,7 @@ public class MessageContext {
 
     Menu menu;
 
-    Map<String, String> values;
+    Map<String, Object> values;
 
     User user;
 
@@ -48,11 +48,22 @@ public class MessageContext {
         values.put(key, value);
     }
 
+    public <T> T get(String key, Class<T> clazz) {
+        if (Objects.isNull(values)) throw new NullPointerException("Values are null");
+        var value = values.get(key);
+        if (Objects.isNull(value)) throw new NullPointerException("Value not found");
+        if (clazz.isInstance(value)) {
+            return clazz.cast(value);
+        } else {
+            throw new ClassCastException("Value is not of type " + clazz.getName());
+        }
+    }
+
     public String getValue(String key) {
         if (Objects.isNull(values)) {
             throw new NullPointerException("Values are null");
         }
-        return values.get(key);
+        return (String) values.get(key);
     }
 
     public void clear() {

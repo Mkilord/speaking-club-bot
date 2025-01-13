@@ -25,6 +25,12 @@ public class UserService {
         return userRepository.findAll();
     }
 
+    @Transactional
+    public boolean isUserSubscribeToClub(Long userId, Long clubId) {
+        return getUserById(userId).map(user -> user.getClubs().stream()
+                .anyMatch(club -> clubId.equals(club.getId()))).orElse(false);
+    }
+
     public Optional<User> getUserById(Long id) {
         return userRepository.findById(id);
     }

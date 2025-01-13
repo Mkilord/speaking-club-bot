@@ -49,37 +49,32 @@ public class ClubService {
     }
 
     @Transactional
-    public Optional<Club> addSubscriber(Long clubId, User user) {
+    public void addSubscriber(Long clubId, User user) {
         var clubOpt = getClubById(clubId);
         if (clubOpt.isEmpty()) {
             log.warn("Клуб или пользователь не найден: clubId={}, userId={}", clubId, user.getTelegramId());
-            return Optional.empty();
+            return;
         }
         var club = clubOpt.get();
-
         if (club.getSubscribers().add(user)) {
             log.info("Пользователь {} добавлен в подписчики клуба {}", user.getUsername(), club.getName());
-            return Optional.of(club);
         } else {
             log.warn("Пользователь {} уже подписан на клуб {}", user.getUsername(), club.getName());
-            return Optional.empty();
         }
     }
 
-    public Optional<Club> removeSubscriber(Long clubId, User user) {
+    public void removeSubscriber(Long clubId, User user) {
         var clubOpt = getClubById(clubId);
         if (clubOpt.isEmpty()) {
             log.warn("Клуб или пользователь не найден: clubId={}, userId={}", clubId, user.getTelegramId());
-            return Optional.empty();
+            return;
         }
 
         var club = clubOpt.get();
         if (club.getSubscribers().remove(user)) {
             log.info("Пользователь {} удалён из подписчиков клуба {}", user.getUsername(), club.getName());
-            return Optional.of(club);
         } else {
             log.warn("Пользователь {} не подписан на клуб {}", user.getUsername(), club.getName());
-            return Optional.empty();
         }
     }
 

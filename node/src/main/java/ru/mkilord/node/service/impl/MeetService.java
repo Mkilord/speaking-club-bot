@@ -34,24 +34,11 @@ public class MeetService {
     }
 
     @Transactional
-    public Optional<Meet> update(long id, Meet meetDetails) {
-        return getMeetById(id).map(meet -> {
-            meet.setName(meetDetails.getName());
-            meet.setDate(meetDetails.getDate());
-            meet.setTime(meetDetails.getTime());
-            meet.setStatus(meetDetails.getStatus());
-            meet.setClub(meetDetails.getClub());
-            log.info("Обновление встречи с id {}: {}", id, meetDetails.getName());
-            return meet;
-        });
-    }
-
-    @Transactional
     public Optional<Meet> publicMeetByIdWithNotification(long id) {
         return getMeetById(id).map(meet -> {
             meet.setStatus(MeetStatus.PUBLISHED);
             var subscribers = new ArrayList<>(meet.getClub().getSubscribers());
-            notificationService.notifyUsersAboutMeet(subscribers, NotificationService.generateNotificationFrom(meet));
+            notificationService.notifyUsersAboutMeet(subscribers, NotificationService.generateNotificationFromByStatus(meet));
             return meet;
         });
     }
@@ -61,7 +48,7 @@ public class MeetService {
         return getMeetById(id).map(meet -> {
             meet.setStatus(MeetStatus.CANCELLED);
             var subscribers = new ArrayList<>(meet.getClub().getSubscribers());
-            notificationService.notifyUsersAboutMeet(subscribers, NotificationService.generateNotificationFrom(meet));
+            notificationService.notifyUsersAboutMeet(subscribers, NotificationService.generateNotificationFromByStatus(meet));
             return meet;
         });
     }
@@ -74,12 +61,8 @@ public class MeetService {
         return meetRepository.findMeetsByClubIdAndStatusIn(clubId, meetSet);
     }
 
-    public List<Meet> getMeetsByClubIdAndStatus(long clubId, MeetStatus status) {
-        return meetRepository.findMeetsByClubIdAndStatus(clubId, status);
-    }
-
-    public List<Meet> getMeetsByClubId(long clubId) {
-        return meetRepository.findMeetsByClubId(clubId);
+    public List<Meet> getMeetsForUserByStatus(Long telegramId, MeetStatus status) {
+        return meetRepository.findAllByUserTelegramIdAndStatus(telegramId, status);
     }
 
     public Optional<Meet> getMeetById(Long meetId) {
@@ -124,31 +107,28 @@ public class MeetService {
     }
 
     @Transactional
-    public Optional<Meet> addUserToMeet(Long meetId, User user) {
-        return getMeetById(meetId).map(meet -> {
+    public void addUserToMeet(Long meetId, User user) {
+        getMeetById(meetId).ifPresent(meet -> {
             var registeredUsers = meet.getRegisteredUsers();
             if (registeredUsers.contains(user)) {
-                return meet;
+                return;
             }
             if (registeredUsers.add(user)) {
                 log.info("Добавлен пользователь {} к встрече {}", user.getUsername(), meet.getName());
             } else {
                 log.warn("Пользователь {} уже зарегистрирован на встречу {}", user.getUsername(), meet.getName());
             }
-            return meet;
         });
     }
 
-
     @Transactional
-    public Optional<Meet> removeUserFromMeet(Long meetId, User user) {
-        return getMeetById(meetId).map(meet -> {
+    public void removeUserFromMeet(Long meetId, User user) {
+        getMeetById(meetId).ifPresent(meet -> {
             if (meet.getRegisteredUsers().remove(user)) {
                 log.info("Удалён пользователь {} из встречи {}", user.getUsername(), meet.getName());
             } else {
                 log.warn("Пользователь {} не был зарегистрирован на встречу {}", user.getUsername(), meet.getName());
             }
-            return meet;
         });
     }
 }
