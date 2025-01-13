@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.experimental.FieldDefaults;
 import ru.mkilord.node.model.enums.Role;
 
@@ -23,9 +24,9 @@ public class User {
 
     @Id
     Long telegramId;
-    String username;
 
     Long chatId;
+    String username;
 
     @Enumerated(EnumType.STRING)
     Role role = Role.USER;
@@ -42,18 +43,20 @@ public class User {
     @Column(unique = true)
     String phone;
 
+    @ToString.Exclude
     @ManyToMany(mappedBy = "subscribers")
     Set<Club> clubs = new HashSet<>();
 
     @Override
     public boolean equals(Object o) {
+        if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         User user = (User) o;
-        return Objects.equals(telegramId, user.telegramId) && Objects.equals(username, user.username) && Objects.equals(chatId, user.chatId) && role == user.role && Objects.equals(firstName, user.firstName) && Objects.equals(lastName, user.lastName) && Objects.equals(middleName, user.middleName) && Objects.equals(email, user.email) && Objects.equals(phone, user.phone);
+        return Objects.equals(telegramId, user.telegramId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(telegramId, username, chatId, role, firstName, lastName, middleName, email, phone);
+        return Objects.hash(telegramId);
     }
 }
