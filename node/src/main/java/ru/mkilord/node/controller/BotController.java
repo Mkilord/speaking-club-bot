@@ -22,17 +22,22 @@ import ru.mkilord.node.service.impl.UserService;
 import ru.mkilord.node.util.TextUtils;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 import static lombok.AccessLevel.PRIVATE;
 import static ru.mkilord.node.command.Step.*;
+import static ru.mkilord.node.util.MeetFormatter.formatForItemWithStatus;
+import static ru.mkilord.node.util.MeetFormatter.formatMeetWithOutStatus;
 
 
 @FieldDefaults(level = PRIVATE, makeFinal = true)
@@ -43,6 +48,7 @@ public class BotController implements CommandCatalog {
 
     CommandHandler commandHandler;
     ProducerService producerService;
+
     UserService userService;
     ClubService clubService;
     MeetService meetService;
@@ -81,9 +87,8 @@ public class BotController implements CommandCatalog {
      *MEMBER - это уже зарегистрированный пользователь, который может полноценно взаимодействовать с клубами.
      *  /profile - профиль пользователя.
      *  /feedback - текущие опросы.
-     *  /my_meets - текущие встречи.
+     *  /meets - текущие встречи.
      *  /clubs - просмотр клубов, подписка на уведомления и на встречу
-     *
      *
      *ORGANIZER - Это тот кто создаёт встречи. Закреплён за клубом.
      * /control_clubs - отображает список клубов которые он контролирует
@@ -98,7 +103,6 @@ public class BotController implements CommandCatalog {
      *MANAGER - Это тот кто создаёт клубы. И закрепляет за ними сотрудников.
      * /create_club - позволяет создать клуб.
      *  */
-
 
     private void addCommands(List<Command> list, Command... commands) {
         list.addAll(List.of(commands));
@@ -128,7 +132,16 @@ public class BotController implements CommandCatalog {
         var emailInput = Reply.builder()
                 .preview((Consumer<MessageContext>) context -> send(context, "Пожалуйста, введи свой email. 📧"))
                 .action(context -> {
-                    context.put("email", context.getText());
+                    var email = context.getText();
+
+                    var emailRegex = "^[A-Za-z0-9+_.-]+@(.+)$";
+                    var pattern = Pattern.compile(emailRegex);
+
+                    if (email == null || !pattern.matcher(email).matches()) {
+                        send(context, "❗ Неверный формат email! Пожалуйста, введите корректный email.");
+                        return REPEAT;
+                    }
+                    context.put("email", email);
                     return NEXT;
                 });
         var phoneInput = Reply.builder()
@@ -244,11 +257,7 @@ public class BotController implements CommandCatalog {
                             send(context, "ℹ️ Чтобы узнать команды бота, используй /help\nили кнопку ниже! 🤖", helpMenu.showMenu());
                         }).build());
 
-
         //Member Commands
-        //Проблема в том что когда это динамическое меню мы никак не можем понять
-        //Кликнул ли он по меню или ввёл команду.
-        //Нужно как то отличить клик.
         var clubOptionsMenu = Menu.builder()
                 .items(new Item("Встречи", context -> {
                     var club = context.getValue("club");
@@ -258,12 +267,12 @@ public class BotController implements CommandCatalog {
                         return TERMINATE;
                     }
                     var items = meets.stream()
-                            .map(meet -> new Item(String.valueOf(meet.getId()), meet.getInfo())).toList();
+                            .map(meet -> new Item(String.valueOf(meet.getId()), formatMeetWithOutStatus(meet))).toList();
                     var menu = Menu.builder()
                             .items(items)
                             .build();
                     context.setMenu(menu);
-                    send(context, "Доступные встречи: ", menu.showMenu());
+                    send(context, "Записать на встречи: ", menu.showMenu());
                     return NEXT;
                 }), new Item("Подписаться", context -> {
                     var clubId = context.getValue("club");
@@ -273,8 +282,8 @@ public class BotController implements CommandCatalog {
                 }), new Item("О клубе", context -> {
                     var clubId = context.getValue("club");
                     var clubOpt = clubService.getClubById(Long.parseLong(clubId));
-                    clubOpt.ifPresentOrElse(club -> send(context, "Информация о клубе: \n" + club.getDescription())
-                            , () -> send(context, "Информация не найдена!"));
+                    clubOpt.ifPresentOrElse(club -> send(context, "Информация о клубе: \n" + club.getDescription()),
+                            () -> send(context, "Информация не найдена!"));
                     return TERMINATE;
                 }))
                 .build();
@@ -288,6 +297,52 @@ public class BotController implements CommandCatalog {
                             return null;
                         })).build();
 
+        var meetsCommand = Command.create("/meets")
+                .help("Позволяет просматривать запланированные встречи.")
+                .access(Role.MEMBER)
+                .input(Reply.builder().preview(context -> {
+                    var meets = meetService.getMeetsForUserByStatus(context.getUser().getTelegramId(), MeetStatus.PUBLISHED);
+                    if (meets.isEmpty()) {
+                        send(context, "У тебя нет встреч!\n\uD83D\uDCD8 Используй /clubs, чтобы записаться на встречу!");
+                        return TERMINATE;
+                    }
+                    var items = meets.stream().map(meet -> new Item(String.valueOf(meet.getId()), formatForItemWithStatus(meet))).toList();
+                    var menu = Menu.builder()
+                            .items(items)
+                            .build();
+                    send(context, "Ваши встречи: ", menu.showMenu());
+                    context.setMenu(menu);
+                    return NEXT;
+                }).action(context -> {
+                    if (Menu.invalidItem(context.getMenu(), context.getText())) return INVALID;
+                    context.put("meetId", context.getText());
+                    context.put("meetName", context.getMenu().getItemNameByKey(context.getText()));
+                    return NEXT;
+                }))
+                .input(Reply.builder().preview(context -> {
+                    var meetId = context.getValue("meetId");
+                    var meetOpt = meetService.getMeetById(Long.parseLong(meetId));
+                    if (meetOpt.isEmpty()) {
+                        send(context, "Данные о встрече устарели! Попробуйте снова!");
+                        return TERMINATE;
+                    }
+                    var meet = meetOpt.get();
+                    var items = new ArrayList<Item>();
+                    if (meet.getStatus() == MeetStatus.PUBLISHED) {
+                        items.add(new Item("Отменить регистрацию", _ -> {
+                            meetService.removeUserFromMeet(Long.parseLong(meetId), context.getUser());
+                            send(context, "Отменил твою регистрацию!\n\uD83D\uDCD8 Чтобы просмотреть свои встречи используй /meets");
+                            return TERMINATE;
+                        }));
+                    }
+                    var menu = Menu.builder()
+                            .items(items)
+                            .build();
+                    send(context, "Выберите действие встречи:\n" + formatForItemWithStatus(meet), menu.showMenu());
+                    context.setMenu(menu);
+                    return NEXT;
+                }).action(context -> context.getMenu().onClick(context)))
+                .build();
 
         var clubsCommand = Command.create("/clubs")
                 .access(Role.MEMBER)
@@ -295,13 +350,62 @@ public class BotController implements CommandCatalog {
                 .input(inputSelectClub)
                 .input(Reply.builder().preview(context -> {
                     var clubName = context.getValue("clubName");
-                    send(context, clubName + " клуб:", clubOptionsMenu.showMenu());
-                }).action(clubOptionsMenu::onClick))
+                    var clubId = context.getValue("club");
+                    var isUserSubscribed = userService.isUserSubscribeToClub(context.getUser().getTelegramId(), Long.valueOf(clubId));
+
+                    var items = new ArrayList<Item>();
+                    items.add(new Item("Встречи", _ -> {
+                        var club = context.getValue("club");
+                        var meets = meetService.getPublishedMeetsByClubId(Long.parseLong(club));
+                        if (meets.isEmpty()) {
+                            send(context, "Нет доступных встреч!");
+                            return TERMINATE;
+                        }
+                        var itemsMeets = meets.stream()
+                                .map(meet -> new Item(String.valueOf(meet.getId()), formatMeetWithOutStatus(meet))).toList();
+                        var menu = Menu.builder()
+                                .items(itemsMeets)
+                                .build();
+                        context.setMenu(menu);
+                        send(context, "Доступные встречи: ", menu.showMenu());
+                        return NEXT;
+                    }));
+                    if (isUserSubscribed) {
+                        items.add(new Item("Отписаться", _ -> {
+                            clubService.removeSubscriber(Long.valueOf(clubId), context.getUser());
+                            send(context, "Вы отписались! ");
+                            return TERMINATE;
+                        }));
+                    } else {
+                        items.add(new Item("Подписаться", _ -> {
+                            clubService.addSubscriber(Long.valueOf(clubId), context.getUser());
+                            send(context, "Подписка оформлена! \uD83D\uDCD8 Используй /clubs чтобы выбрать встречу.");
+                            return TERMINATE;
+                        }));
+                    }
+                    items.add(new Item("О клубе", _ -> {
+                        var clubOpt = clubService.getClubById(Long.parseLong(clubId));
+                        clubOpt.ifPresentOrElse(club -> send(context, "Информация о клубе: \n" + club.getDescription() +
+                                        "\n\uD83D\uDCD8 Используй /clubs чтобы записаться на встречу.")
+                                , () -> send(context, "Информация не найдена!"));
+                        return TERMINATE;
+                    }));
+
+                    var menu = Menu.builder()
+                            .items(items)
+                            .build();
+                    send(context, clubName + " клуб:", menu.showMenu());
+                    context.setMenu(menu);
+                }).action(context -> {
+                    if (Menu.invalidItem(context.getMenu(), context.getText())) return INVALID;
+                    context.getMenu().onClick(context);
+                    return NEXT;
+                }))
                 .input(context -> {
                     if (Menu.invalidItem(context.getMenu(), context.getText())) return INVALID;
                     var meetId = context.getText();
                     meetService.addUserToMeet(Long.valueOf(meetId), context.getUser());
-                    send(context, "Отметил что ты придёшь на встречу. ");
+                    send(context, "Отметил что ты придёшь на встречу.\n\uD83D\uDCD8 Чтобы просмотреть свои встречи используй /meets");
                     return TERMINATE;
                 })
                 .build();
@@ -378,10 +482,9 @@ public class BotController implements CommandCatalog {
                                     .description(clubDescription)
                                     .build();
                             clubService.save(club);
-                            send(context, "Клуб создан!");
+                            send(context, "Клуб создан! \uD83D\uDCD8 Используй /control_clubs чтобы управлять клубами.");
                         })
                 ).build();
-
 
         /*     *ORGANIZER - Это тот кто создаёт встречи. Закреплён за клубом.
          * /control_clubs - отображает список клубов которые он контролирует
@@ -392,51 +495,6 @@ public class BotController implements CommandCatalog {
          *          В: Отметить проведённой. -> Запустить опрос.
          *          В: Отменить.
          *          В: Удалить.*/
-        var meetMenu = Menu.builder().items(
-                new Item("Опубликовать", context -> {
-                    var meetId = context.getValue("meetId");
-                    var meetOpt = meetService.publicMeetByIdWithNotification(Long.parseLong(meetId));
-                    meetOpt.ifPresentOrElse(_ -> send(context, "Встреча опубликована!"),
-                            () -> send(context, "Не удалось встречи не существует!"));
-                    return TERMINATE;
-                }),
-                new Item("Участники", context -> {
-                    var meetId = context.getValue("meetId");
-                    var meetOpt = meetService.getMeetWithRegisteredUsersById(Long.parseLong(meetId));
-                    meetOpt.ifPresentOrElse(meet -> {
-                        var users = meet.getRegisteredUsers();
-                        var outStrBuilder = new StringBuilder("Список участников:\n");
-                        users.forEach(u -> outStrBuilder.append(u.getFirstName()).append(" ").append(u.getLastName()).append("\n"));
-                        outStrBuilder.append("Всего: ").append(users.size());
-                        send(context, outStrBuilder.toString());
-                    }, () -> send(context, "Не удалось встречи не существует!"));
-                    return TERMINATE;
-                }),
-                new Item("Отметить проведённой", context -> {
-                    var meetId = context.getValue("meetId");
-                    var meetOpt = meetService.updateMeetStatus(Long.parseLong(meetId), MeetStatus.COMPLETED);
-                    meetOpt.ifPresentOrElse(_ -> send(context, "Отметил встречу как проведённую!")
-                            , () -> send(context, "Не удалось встречи не существует!"));
-                    return NEXT;
-                }),
-                new Item("Отменить", context -> {
-                    var meetId = context.getValue("meetId");
-                    var meetOpt = meetService.cancelMeetByIdWithNotification(Long.parseLong(meetId));
-                    meetOpt.ifPresentOrElse(_ -> send(context, "Отметил встречу!")
-                            , () -> send(context, "Не удалось встречи не существует!"));
-                    return TERMINATE;
-                }),
-                new Item("Удалить", context -> {
-                    var meetId = context.getValue("meetId");
-                    var isDelete = meetService.deleteMeetById(Long.parseLong(meetId));
-                    if (isDelete) {
-                        send(context, "Встреча удалена!");
-                    } else {
-                        send(context, "Не удалось удалить встречу. \n Чтобы удалить встречу нужно её отменить!");
-                    }
-                    return TERMINATE;
-                })
-        ).build();
 
         var controlMeeting = Command.create("/control_meeting")
                 .help("Позволяет управлять встречами ")
@@ -450,7 +508,7 @@ public class BotController implements CommandCatalog {
                         send(context, "Нет доступных встреч!");
                         return TERMINATE;
                     }
-                    var items = meets.stream().map(meet -> new Item(String.valueOf(meet.getId()), meet.getInfo())).toList();
+                    var items = meets.stream().map(meet -> new Item(String.valueOf(meet.getId()), formatForItemWithStatus(meet))).toList();
                     var menu = Menu.builder()
                             .items(items)
                             .build();
@@ -476,13 +534,13 @@ public class BotController implements CommandCatalog {
                     if (meet.getStatus() == MeetStatus.HIDDEN) {
                         items.add(new Item("Опубликовать", _ -> {
                             meetService.publicMeetByIdWithNotification(Long.parseLong(meetId));
-                            send(context, "Встреча опубликована!");
+                            send(context, "Встреча опубликована! \n\uD83D\uDCD8 Используй /control_meeting чтобы управлять встречами");
                             return TERMINATE;
                         }));
                         items.add(new Item("Удалить", _ -> {
                             var isDelete = meetService.deleteMeetById(Long.parseLong(meetId));
                             if (isDelete) {
-                                send(context, "Встреча удалена!");
+                                send(context, "Встреча удалена! \n\uD83D\uDCD8 Используй /control_meeting чтобы управлять встречами");
                             } else {
                                 send(context, "Не удалось удалить встречу.");
                             }
@@ -492,17 +550,35 @@ public class BotController implements CommandCatalog {
                     if (meet.getStatus() == MeetStatus.PUBLISHED) {
                         items.add(new Item("Отметить проведённой", _ -> {
                             meetService.updateMeetStatus(Long.parseLong(meetId), MeetStatus.COMPLETED)
-                                    .ifPresentOrElse(_ -> send(context, "Отметил встречу как проведённую!")
-                                            , () -> send(context, "Не удалось встречи не существует!"));
+                                    .ifPresentOrElse(_ -> send(context, "Отметил встречу как проведённую! " +
+                                                    "\n\uD83D\uDCD8 Используй /control_meeting чтобы управлять встречами"),
+                                            () -> send(context, "Не удалось встречи не существует!"));
                             return NEXT;
                         }));
                         items.add(new Item("Отменить", _ -> {
                             meetService.cancelMeetByIdWithNotification(Long.parseLong(meetId))
-                                    .ifPresentOrElse(_ -> send(context, "Отметил встречу!")
-                                            , () -> send(context, "Не удалось встречи не существует!"));
+                                    .ifPresentOrElse(_ -> send(context, "Отменил встречу! " +
+                                                    "\n\uD83D\uDCD8 Используй /control_meeting чтобы управлять встречами"),
+                                            () -> send(context, "Не удалось встречи не существует!"));
                             return TERMINATE;
                         }));
                     }
+                    items.add(new Item("Участники", _ -> {
+                        meetService.getMeetWithRegisteredUsersById(Long.parseLong(meetId)).ifPresentOrElse(meet1 -> {
+                            var users = meet1.getRegisteredUsers();
+                            if (users.isEmpty()) {
+                                send(context, "Зарегистрировавшиеся участники не найдены!");
+                                send(context, "\n\uD83D\uDCD8 Используй /control_meeting чтобы управлять встречами");
+                                return;
+                            }
+                            var outStrBuilder = new StringBuilder("Список участников:\n");
+                            users.forEach(u -> outStrBuilder.append(u.getFirstName()).append(" ").append(u.getLastName()).append("\n"));
+                            outStrBuilder.append("Всего: ").append(users.size());
+                            send(context, outStrBuilder.toString());
+                            send(context, "\n\uD83D\uDCD8 Используй /control_meeting чтобы управлять встречами");
+                        }, () -> send(context, "Не удалось встречи не существует!"));
+                        return TERMINATE;
+                    }));
                     var menu = Menu.builder()
                             .items(items)
                             .build();
@@ -527,17 +603,17 @@ public class BotController implements CommandCatalog {
                 .action(context -> {
                     var msg = context.getText();
                     try {
-                        var date = LocalDate.parse(msg, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                        var formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+                        var date = LocalDate.parse(msg, formatter);
                         var now = LocalDate.now();
                         if (date.isBefore(now) || date.isAfter(now.plusMonths(1))) {
-                            send(context, "❗ Введите дату в пределах от сегодняшнего дня до 1-го месяца вперёд.!");
+                            send(context, "❗ Введите дату в пределах от сегодняшнего дня до 1-го месяца вперёд.");
                             return REPEAT;
                         }
                         context.put("meetDate", date.toString());
                         return NEXT;
-
                     } catch (DateTimeParseException e) {
-                        send(context, "❗ Неверный формат даты! Убедитесь, что используете формат YYYY-MM-DD.");
+                        send(context, "❗ Неверный формат даты! Убедитесь, что используете формат DD.MM.YYYY.");
                         return REPEAT;
                     }
                 });
@@ -545,23 +621,27 @@ public class BotController implements CommandCatalog {
                 .action(context -> {
                     var msg = context.getText();
                     try {
-                        // Проверка формата времени
-                        var time = LocalTime.parse(msg, DateTimeFormatter.ofPattern("HH:mm"));
+                        var formatter = new DateTimeFormatterBuilder()
+                                .appendPattern("[H:mm][HH:mm][H:m][HH:m]")
+                                .toFormatter();
+                        var time = LocalTime.parse(msg, formatter);
 
-                        // Проверка диапазона времени (например, от 08:00 до 22:00)
-                        var start = LocalTime.of(8, 0); // 08:00
-                        var end = LocalTime.of(22, 0);  // 22:00
+                        var start = LocalTime.of(8, 0);
+                        var end = LocalTime.of(22, 0);
                         if (time.isBefore(start) || time.isAfter(end)) {
                             send(context, "❗ Введите время в диапазоне от 08:00 до 22:00!");
                             return REPEAT;
                         }
-
-                        // Сохранение времени в контекст как строку
+                        var now = LocalDateTime.now();
+                        var todayTime = LocalDateTime.of(LocalDate.now(), time);
+                        if (todayTime.isBefore(now)) {
+                            send(context, "❗ Время уже прошло. Введите время, которое ещё не наступило.");
+                            return REPEAT;
+                        }
                         context.put("meetTime", time.toString());
                         return NEXT;
-
                     } catch (DateTimeParseException e) {
-                        send(context, "❗ Неверный формат времени! Убедитесь, что используете формат HH:mm.");
+                        send(context, "❗ Неверный формат времени! Убедитесь, что используете формат, например, 8:30 или 09:40.");
                         return REPEAT;
                     }
                 });
@@ -608,7 +688,11 @@ public class BotController implements CommandCatalog {
                                 send(context, "Встреча опубликована!");
                                 return TERMINATE;
                             }),
-                            new Item("Нет", _ -> TERMINATE)
+                            new Item("Нет", _ -> {
+                                send(context, "Встреча не опубликована." +
+                                        "\n\uD83D\uDCD8 Используй /control_meeting для управления встречей.");
+                                return TERMINATE;
+                            })
                     ).build();
                     context.setMenu(dialogMenu);
                     send(context, "Хотите опубликовать встречу?", dialogMenu.showMenu());
@@ -617,7 +701,7 @@ public class BotController implements CommandCatalog {
                     context.getMenu().onClick(context);
                     return TERMINATE;
                 })).build();
-        addCommands(commands, createMeeting, controlMeeting);
+        addCommands(commands, meetsCommand, createMeeting, controlMeeting);
         addCommands(commands, createClub, clubsCommand, feedback, profile, editProfile);
         var help = Command.create("/help")
                 .access(Role.ALL)
