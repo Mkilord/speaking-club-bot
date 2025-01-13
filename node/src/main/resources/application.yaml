@@ -20,6 +20,8 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+bot:
+  manager_id: ${MANAGER_ID:488063845}
 
 server:
   port: ${NODE_PORT:8085}

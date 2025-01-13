@@ -5,8 +5,9 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import ru.mkilord.node.model.enums.Role;
+import ru.mkilord.node.config.BotConfig;
 import ru.mkilord.node.model.User;
+import ru.mkilord.node.model.enums.Role;
 import ru.mkilord.node.service.impl.UserService;
 
 import java.util.HashMap;
@@ -29,6 +30,8 @@ public class CommandHandler {
 
     final Map<Long, MessageContext> contextMap = new HashMap<>();
     final UserService userService;
+
+    BotConfig botConfig;
 
     Consumer<MessageContext> unknownCommandCallback;
 
@@ -65,31 +68,40 @@ public class CommandHandler {
     private MessageContext createContext(Update update) {
         var telegramId = getUserId(update);
         var chatId = getChatId(update);
-        var user = userService.getUserById(telegramId);
-        var context = user.map(user1 -> {
-                    //Нужно сделать проверку на смену никнейма.
-                    if (!user1.getChatId().equals(chatId)) {
-                        user1.setChatId(chatId);
-                        userService.update(user1);
-                    }
-                    return MessageContext.builder()
-                            .user(user1)
-                            .update(update)
-                            .build();
-                })
-                .orElseGet(() -> {
-                    User newUser = new User();
-                    newUser.setRole(Role.USER);
-                    newUser.setTelegramId(telegramId);
-                    newUser.setChatId(chatId);
-                    newUser = userService.save(newUser);
-                    return MessageContext.builder()
-                            .user(newUser)
-                            .update(update)
-                            .build();
-                });
+        var userOpt = userService.getUserById(telegramId);
+        var context = userOpt
+                .map(user -> restoreUser(user, update, chatId))
+                .orElseGet(() -> registerUser(update, telegramId, chatId));
         contextMap.put(context.getChatId(), context);
         return context;
+    }
+
+    private MessageContext registerUser(Update update, long telegramId, long chatId) {
+        var newUser = new User();
+        if (Long.parseLong(botConfig.getAdminId()) == telegramId) {
+            newUser.setRole(Role.MODERATOR);
+        } else {
+            newUser.setRole(Role.USER);
+        }
+        newUser.setTelegramId(telegramId);
+        newUser.setChatId(chatId);
+        newUser = userService.save(newUser);
+        return MessageContext.builder()
+                .user(newUser)
+                .update(update)
+                .build();
+    }
+
+    private MessageContext restoreUser(User user, Update update, long chatId) {
+        //Нужно сделать проверку на смену никнейма.
+        if (!user.getChatId().equals(chatId)) {
+            user.setChatId(chatId);
+            userService.update(user);
+        }
+        return MessageContext.builder()
+                .user(user)
+                .update(update)
+                .build();
     }
 
     private boolean processReply(MessageContext context) {
