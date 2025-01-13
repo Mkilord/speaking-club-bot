@@ -28,9 +28,7 @@ public class Meet {
     @NotBlank
     String name;
 
-    @NotBlank
     LocalDate date;
-    @NotBlank
     LocalTime time;
 
     @ManyToMany
