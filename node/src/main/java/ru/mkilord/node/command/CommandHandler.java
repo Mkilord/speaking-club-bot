@@ -31,7 +31,7 @@ public class CommandHandler {
     final Map<Long, MessageContext> contextMap = new HashMap<>();
     final UserService userService;
 
-    BotConfig botConfig;
+    final BotConfig botConfig;
 
     Consumer<MessageContext> unknownCommandCallback;
 
@@ -42,6 +42,10 @@ public class CommandHandler {
                 .map(Command::extractReplies)
                 .flatMap(repliesMap -> repliesMap.entrySet().stream())
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (reply1, _) -> reply1));
+    }
+
+    public void removeContext(MessageContext context) {
+        contextMap.remove(context.getChatId());
     }
 
     private Long getChatId(Update update) {
@@ -79,7 +83,7 @@ public class CommandHandler {
     private MessageContext registerUser(Update update, long telegramId, long chatId) {
         var newUser = new User();
         if (Long.parseLong(botConfig.getAdminId()) == telegramId) {
-            newUser.setRole(Role.MODERATOR);
+//            newUser.setRole(Role.MODERATOR);
         } else {
             newUser.setRole(Role.USER);
         }
