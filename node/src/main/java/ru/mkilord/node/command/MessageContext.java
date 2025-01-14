@@ -48,7 +48,7 @@ public class MessageContext {
         values.put(key, value);
     }
 
-    public <T> T get(String key, Class<T> clazz) {
+    public <T> T getValue(String key, Class<T> clazz) {
         if (Objects.isNull(values)) throw new NullPointerException("Values are null");
         var value = values.get(key);
         if (Objects.isNull(value)) throw new NullPointerException("Value not found");
