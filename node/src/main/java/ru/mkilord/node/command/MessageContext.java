@@ -7,9 +7,7 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import ru.mkilord.node.command.menu.Menu;
 import ru.mkilord.node.model.User;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 import static lombok.AccessLevel.PRIVATE;
 
@@ -17,15 +15,18 @@ import static lombok.AccessLevel.PRIVATE;
 @FieldDefaults(level = PRIVATE)
 @Data
 public class MessageContext {
+
     Update update;
 
     String replyId;
 
-    Menu menu;
-
     Map<String, Object> values;
 
     User user;
+
+    public Menu getMenu() {
+        return getValue(Menu.MENU_KEY, Menu.class);
+    }
 
     public long getChatId() {
         return user.getChatId();
@@ -43,9 +44,24 @@ public class MessageContext {
         return this;
     }
 
-    public void put(String key, String value) {
+    public void put(String key, Object value) {
         if (Objects.isNull(values)) values = new HashMap<>();
         values.put(key, value);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> List<T> getValues(String key, Class<T> elementClass) {
+        if (Objects.isNull(values)) throw new NullPointerException("Values are null");
+        var value = values.get(key);
+        if (!(value instanceof ArrayList<?> list)) {
+            throw new ClassCastException("Value is not of type ArrayList");
+        }
+        for (Object item : list) {
+            if (!elementClass.isInstance(item)) {
+                throw new ClassCastException("Element is not of type " + elementClass.getName());
+            }
+        }
+        return (List<T>) list;
     }
 
     public <T> T getValue(String key, Class<T> clazz) {
@@ -68,7 +84,6 @@ public class MessageContext {
 
     public void clear() {
         replyId = null;
-        menu = null;
         if (Objects.nonNull(values)) values.clear();
     }
 
