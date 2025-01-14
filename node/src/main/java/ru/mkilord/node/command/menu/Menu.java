@@ -17,30 +17,42 @@ import static lombok.AccessLevel.PRIVATE;
 @AllArgsConstructor(access = PRIVATE)
 @FieldDefaults(makeFinal = true, level = PRIVATE)
 public class Menu {
-    InlineKeyboardMarkup keyboardMarkup;
+    public final static String MENU_KEY = "menu";
 
-    public InlineKeyboardMarkup showMenu() {
+    InlineKeyboardMarkup keyboardMarkup;
+    List<Item> items;
+
+    public InlineKeyboardMarkup showMenu(MessageContext context) {
+        context.put(MENU_KEY, this);
         return keyboardMarkup;
     }
 
+    @Deprecated
     public String getItemNameByKey(String key) {
         return items.stream().filter(item -> Objects.equals(item.getId(), key))
                 .findFirst().map(Item::getText).orElseThrow(NullPointerException::new);
     }
 
-    List<Item> items;
+    public static boolean isInvalidInput(MessageContext context) {
+        if (notMenuOnClick(context)) {
+            return true;
+        }
+        var inputText = context.getText();
+        var menu = context.getValue(MENU_KEY, Menu.class);
+        return menu.items.stream().noneMatch(item -> item.getId().equals(inputText));
+    }
 
+    @Deprecated
     public static boolean invalidItem(Menu menu, String id) {
         return menu.items.stream().noneMatch(item -> item.getId().equals(id));
     }
 
-    public static boolean notMenuOnClick(MessageContext context) {
+    private static boolean notMenuOnClick(MessageContext context) {
         return !context.getUpdate().hasCallbackQuery();
     }
 
     public Step onClick(MessageContext context) {
-        var isInvalid = notMenuOnClick(context) && invalidItem(context.getMenu(), context.getText());
-        if (isInvalid) return Step.INVALID;
+        if (isInvalidInput(context)) return Step.INVALID;
         return items.stream().filter(item -> Objects.equals(item.getId(), context.getText()))
                 .findFirst()
                 .flatMap(Item::getOnClick)
