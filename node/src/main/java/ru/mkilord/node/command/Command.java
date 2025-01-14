@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import ru.mkilord.node.command.context.MessageContext;
 import ru.mkilord.node.model.enums.Role;
 
 import java.util.*;
@@ -20,10 +21,12 @@ import static lombok.AccessLevel.PRIVATE;
 public class Command {
 
     String name;
+    String info;
+
     Function<MessageContext, Step> action;
     Reply reply;
+
     Set<String> roles;
-    String info;
 
     public Optional<Reply> getReply() {
         return Optional.ofNullable(reply);
@@ -93,11 +96,14 @@ public class Command {
     @FieldDefaults(level = PRIVATE)
     public static class Builder {
         final String name;
-        Function<MessageContext, Step> action;
-        final List<Reply> replyList = new ArrayList<>();
-        Set<String> roles = new HashSet<>();
         String info;
+
+        Set<String> roles = new HashSet<>();
+
+        Function<MessageContext, Step> action;
         Consumer<MessageContext> post;
+
+        final List<Reply> replyList = new ArrayList<>();
 
         public Builder(String name) {
             this.name = name;
@@ -167,10 +173,10 @@ public class Command {
 
         public Command build() {
             if (replyList.isEmpty()) {
-                return new Command(name, action, null, roles, info);
+                return new Command(name, info, action, null, roles);
             }
             compileReplies();
-            return new Command(name, action, replyList.getFirst(), roles, info);
+            return new Command(name, info, action, replyList.getFirst(), roles);
         }
     }
 }

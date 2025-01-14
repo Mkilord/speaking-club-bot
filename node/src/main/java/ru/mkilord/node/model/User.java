@@ -1,7 +1,6 @@
 package ru.mkilord.node.model;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import ru.mkilord.node.model.enums.Role;

@@ -35,7 +35,8 @@ services:
       dockerfile: ./node/Dockerfile
     environment:
       NODE_PORT: ${NODE_PORT}
-      
+      CONTEXT_LIMIT: ${CONTEXT_LIMIT:20000}
+      MANAGER_ID: ${MANAGER_ID:488063845}
       RABBIT_HOST: ${RABBIT_HOST}
       RABBIT_PORT: ${RABBIT_PORT}
       RABBIT_USERNAME: ${RABBIT_USERNAME}

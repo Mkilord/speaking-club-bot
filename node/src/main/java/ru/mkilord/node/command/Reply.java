@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.FieldDefaults;
+import ru.mkilord.node.command.context.MessageContext;
 
 import java.util.Optional;
 import java.util.function.Consumer;

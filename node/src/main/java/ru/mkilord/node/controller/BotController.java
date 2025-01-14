@@ -9,6 +9,8 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import ru.mkilord.node.command.*;
+import ru.mkilord.node.command.context.ContextFlow;
+import ru.mkilord.node.command.context.MessageContext;
 import ru.mkilord.node.command.menu.Item;
 import ru.mkilord.node.command.menu.Menu;
 import ru.mkilord.node.model.Club;
@@ -44,7 +46,9 @@ import static ru.mkilord.node.util.MeetFormatter.formatMeetWithOutStatus;
 public class BotController implements CommandCatalog {
 
     CommandHandler commandHandler;
+
     ProducerService producerService;
+    ContextFlow contextFlow;
 
     UserService userService;
     ClubService clubService;
@@ -104,6 +108,7 @@ public class BotController implements CommandCatalog {
     /*Сделать отзывы
      * Сделать сотрудников
      * Обработать на валидации превышение размера.
+     * Добавить свойство лимита контекстов.
      * Сделать клубы:
      *   Изменить клуб*/
 
@@ -231,11 +236,13 @@ public class BotController implements CommandCatalog {
         var commands = new ArrayList<Command>();
 
         var helpMenu = Menu.builder().items(new Item("/help", "Команды")).build();
+
         /*USER - просто любой рандомный пользователь не прошедший регистрацию
          *   /start - выводит начальную информацию.
          *   /register - позволяет зарегистрироваться и получить права участника.
          *   /help - выводит список доступных команд.
          */
+
         var startCommand = Command.create("/start")
                 .access(Role.USER)
                 .help("Используйте, чтобы получить стартовую информацию.")
@@ -286,6 +293,7 @@ public class BotController implements CommandCatalog {
         /*ALL - все пользователи
          *   /help - выводит список доступных команд.
          */
+
         var help = Command.create("/help")
                 .access(Role.ALL)
                 .action(context -> {
@@ -360,7 +368,7 @@ public class BotController implements CommandCatalog {
                                         userService.deleteById(context.getUser().getTelegramId());
                                         send(context, "Ваши данные удалены! 👋");
                                         send(context, "Используйте команду /start чтобы начать сначала!");
-                                        commandHandler.disposeContext(context);
+                                        contextFlow.disposeContext(context);
                                         return TERMINATE;
                                     }),
                                     new Item("Нет", _ -> {

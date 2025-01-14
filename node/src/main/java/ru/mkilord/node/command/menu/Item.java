@@ -2,7 +2,7 @@ package ru.mkilord.node.command.menu;
 
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
-import ru.mkilord.node.command.MessageContext;
+import ru.mkilord.node.command.context.MessageContext;
 import ru.mkilord.node.command.Step;
 
 import java.util.Optional;

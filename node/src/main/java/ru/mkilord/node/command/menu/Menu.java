@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
-import ru.mkilord.node.command.MessageContext;
+import ru.mkilord.node.command.context.MessageContext;
 import ru.mkilord.node.command.Step;
 
 import java.util.ArrayList;
