@@ -23,7 +23,6 @@ public class User {
     @EqualsAndHashCode.Include
     Long telegramId;
 
-    @NotBlank
     Long chatId;
 
     String username;
