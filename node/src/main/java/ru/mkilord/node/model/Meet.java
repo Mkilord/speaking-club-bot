@@ -8,8 +8,6 @@ import ru.mkilord.node.model.enums.MeetStatus;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
 
 import static lombok.AccessLevel.PRIVATE;
@@ -20,9 +18,11 @@ import static lombok.AccessLevel.PRIVATE;
 @AllArgsConstructor
 @FieldDefaults(level = PRIVATE)
 @Builder
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Meet {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
     long id;
 
     @NotBlank
@@ -38,7 +38,7 @@ public class Meet {
             inverseJoinColumns = @JoinColumn(name = "user_id")
     )
     @ToString.Exclude
-    Set<User> registeredUsers = new HashSet<>();
+    Set<User> registeredUsers;
 
     @ManyToOne
     @JoinColumn(name = "club_id")
@@ -47,17 +47,4 @@ public class Meet {
 
     @Enumerated(EnumType.STRING)
     MeetStatus status;
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Meet meet = (Meet) o;
-        return id == meet.id;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(id);
-    }
 }
