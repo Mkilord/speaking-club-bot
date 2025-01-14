@@ -34,8 +34,9 @@ public class Club {
     )
     @ToString.Exclude
     Set<User> subscribers = new HashSet<>();
+
     @ToString.Exclude
-    @OneToMany(mappedBy = "club")
+    @OneToMany(mappedBy = "club", cascade = CascadeType.ALL, orphanRemoval = true)
     Set<Meet> meets = new HashSet<>();
 
     @Override
