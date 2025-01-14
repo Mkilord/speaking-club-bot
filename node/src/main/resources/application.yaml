@@ -21,6 +21,7 @@ spring:
       ddl-auto: update
     show-sql: true
 bot:
+  context_limit: ${CONTEXT_LIMIT:20000}
   manager_id: ${MANAGER_ID:488063845}
 
 server:

@@ -9,4 +9,6 @@ import org.springframework.context.annotation.Configuration;
 public class BotConfig {
     @Value("${bot.manager_id}")
     String adminId;
+    @Value("${bot.context_limit}")
+    int limit;
 }
