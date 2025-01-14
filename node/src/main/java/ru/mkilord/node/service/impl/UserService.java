@@ -5,10 +5,13 @@ import lombok.AllArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.mkilord.node.model.Meet;
 import ru.mkilord.node.model.User;
+import ru.mkilord.node.model.enums.MeetStatus;
 import ru.mkilord.node.model.enums.Role;
 import ru.mkilord.node.repository.UserRepository;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,6 +34,14 @@ public class UserService {
                 .anyMatch(club -> clubId.equals(club.getId()))).orElse(false);
     }
 
+    @Transactional
+    public List<Meet> getRegisteredMeetsWithStatus(Long userId, MeetStatus status) {
+        var userOpt = getUserById(userId);
+        if (userOpt.isEmpty()) return new ArrayList<>();
+        var user = userOpt.get();
+        return user.getMeets().stream().filter(meet -> meet.getStatus() == status).toList();
+    }
+
     public Optional<User> getUserById(Long id) {
         return userRepository.findById(id);
     }
@@ -39,8 +50,20 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    @Transactional
     public void deleteById(Long id) {
-        userRepository.deleteById(id);
+        var userOpt = getUserById(id);
+        if (userOpt.isEmpty()) {
+            return;
+        }
+        var user = userOpt.get();
+        var clubs = user.getClubs();
+        clubs.forEach(club -> club.getSubscribers().remove(user));
+        user.getClubs().clear();
+        var meets = user.getMeets();
+        meets.forEach(meet -> meet.getRegisteredUsers().remove(user));
+        user.getMeets().clear();
+        userRepository.delete(user);
     }
 
     @Transactional
