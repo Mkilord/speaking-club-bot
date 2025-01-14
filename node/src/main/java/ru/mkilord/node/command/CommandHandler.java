@@ -9,8 +9,8 @@ import ru.mkilord.node.config.BotConfig;
 import ru.mkilord.node.model.User;
 import ru.mkilord.node.model.enums.Role;
 import ru.mkilord.node.service.impl.UserService;
+import ru.mkilord.node.util.UpdateUtils;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -18,20 +18,23 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static lombok.AccessLevel.PRIVATE;
+import static ru.mkilord.node.util.UpdateUtils.getChatIdFromUpdate;
+import static ru.mkilord.node.util.UpdateUtils.getUserIdFromUpdate;
 
 @Slf4j
-@Service
 @FieldDefaults(level = PRIVATE)
 @RequiredArgsConstructor
+@Service
 public class CommandHandler {
 
     Map<String, Reply> replyMap;
     List<Command> commandsList;
 
-    final Map<Long, MessageContext> contextMap = new HashMap<>();
     final UserService userService;
 
     final BotConfig botConfig;
+
+    final ContextFlow contextFlow = new ContextFlow(200);
 
     Consumer<MessageContext> unknownCommandCallback;
 
@@ -44,52 +47,46 @@ public class CommandHandler {
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (reply1, _) -> reply1));
     }
 
-    public void removeContext(MessageContext context) {
-        contextMap.remove(context.getChatId());
+    public void disposeContext(MessageContext context) {
+        contextFlow.remove(context);
     }
 
-    private Long getChatId(Update update) {
-        if (update.hasCallbackQuery()) {
-            return update.getCallbackQuery().getMessage().getChatId();
-        }
-        return update.getMessage().getChatId();
-    }
-
-    private Long getUserId(Update update) {
-        if (update.hasCallbackQuery()) {
-            return update.getCallbackQuery().getFrom().getId();
-        }
-        return update.getMessage().getChatId();
-    }
-
-    private MessageContext getContext(Update update) {
-        var chatId = getChatId(update);
-        return Optional.ofNullable(contextMap.get(chatId))
+    private MessageContext lookupOrCreateContext(Update update) {
+        var chatId = getChatIdFromUpdate(update);
+        return contextFlow.getContext(chatId)
                 .map(context -> context.setUpdate(update))
                 .orElseGet(() -> createContext(update));
     }
 
     private MessageContext createContext(Update update) {
-        var telegramId = getUserId(update);
-        var chatId = getChatId(update);
+        var telegramId = getUserIdFromUpdate(update);
+        var chatId = getChatIdFromUpdate(update);
         var userOpt = userService.getUserById(telegramId);
         var context = userOpt
                 .map(user -> restoreUser(user, update, chatId))
-                .orElseGet(() -> registerUser(update, telegramId, chatId));
-        contextMap.put(context.getChatId(), context);
+                .orElseGet(() -> createContextForNewUser(update, telegramId, chatId));
+        contextFlow.addContext(context.getChatId(), context);
         return context;
     }
 
-    private MessageContext registerUser(Update update, long telegramId, long chatId) {
+    private void setRoleIfModerator(User user, long telegramId) {
+        if (Long.parseLong(botConfig.getAdminId()) == telegramId)
+            user.setRole(Role.MODERATOR);
+        else
+            user.setRole(Role.USER);
+
+    }
+
+    private MessageContext createContextForNewUser(Update update, long telegramId, long chatId) {
         var newUser = new User();
-        if (Long.parseLong(botConfig.getAdminId()) == telegramId) {
-//            newUser.setRole(Role.MODERATOR);
-        } else {
-            newUser.setRole(Role.USER);
-        }
+
+        setRoleIfModerator(newUser, telegramId);
+
         newUser.setTelegramId(telegramId);
         newUser.setChatId(chatId);
+
         newUser = userService.save(newUser);
+
         return MessageContext.builder()
                 .user(newUser)
                 .update(update)
@@ -97,11 +94,17 @@ public class CommandHandler {
     }
 
     private MessageContext restoreUser(User user, Update update, long chatId) {
-        //Нужно сделать проверку на смену никнейма.
+        var username = UpdateUtils.getUsernameFromUpdate(update);
+
+        if (!user.getUsername().equals(username)) {
+            user.setUsername(username);
+            userService.update(user);
+        }
         if (!user.getChatId().equals(chatId)) {
             user.setChatId(chatId);
             userService.update(user);
         }
+
         return MessageContext.builder()
                 .user(user)
                 .update(update)
@@ -123,10 +126,8 @@ public class CommandHandler {
     }
 
     public void process(Update update) {
-        var context = getContext(update);
-        if (processCommand(context) || processReply(context)) {
-            return;
-        }
+        var context = lookupOrCreateContext(update);
+        if (processCommand(context) || processReply(context)) return;
         unknownCommandCallback.accept(context);
     }
 }

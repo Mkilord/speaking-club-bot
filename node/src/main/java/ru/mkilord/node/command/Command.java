@@ -149,16 +149,6 @@ public class Command {
             return this;
         }
 
-        public Builder input(Consumer<MessageContext> inputAction) {
-            var replyBuilder = Reply.builder();
-            replyBuilder.action(context -> {
-                inputAction.accept(context);
-                return Step.NEXT;
-            });
-            createReply(replyBuilder);
-            return this;
-        }
-
         /*Будет выполнен, после применения последнего Reply в очереди*/
         public Builder post(Consumer<MessageContext> postAction) {
             this.post = postAction;
