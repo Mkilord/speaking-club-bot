@@ -1,15 +1,11 @@
 package ru.mkilord.node.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import jakarta.validation.constraints.NotBlank;
+import lombok.*;
 import lombok.experimental.FieldDefaults;
 import ru.mkilord.node.model.enums.Role;
 
-import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
 
 import static lombok.AccessLevel.PRIVATE;
@@ -19,13 +15,17 @@ import static lombok.AccessLevel.PRIVATE;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @FieldDefaults(level = PRIVATE)
 public class User {
 
     @Id
+    @EqualsAndHashCode.Include
     Long telegramId;
 
+    @NotBlank
     Long chatId;
+
     String username;
 
     @Enumerated(EnumType.STRING)
@@ -43,20 +43,10 @@ public class User {
     @Column(unique = true)
     String phone;
 
+    @ManyToMany(mappedBy = "registeredUsers")
     @ToString.Exclude
+    Set<Meet> meets;
+
     @ManyToMany(mappedBy = "subscribers")
-    Set<Club> clubs = new HashSet<>();
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        User user = (User) o;
-        return Objects.equals(telegramId, user.telegramId);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(telegramId);
-    }
+    Set<Club> clubs;
 }
