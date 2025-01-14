@@ -61,10 +61,6 @@ public class MeetService {
         return meetRepository.findMeetsByClubIdAndStatusIn(clubId, meetSet);
     }
 
-    public List<Meet> getMeetsForUserByStatus(Long telegramId, MeetStatus status) {
-        return meetRepository.findAllByUserTelegramIdAndStatus(telegramId, status);
-    }
-
     public Optional<Meet> getMeetById(Long meetId) {
         return meetRepository.findById(meetId);
     }
@@ -75,11 +71,6 @@ public class MeetService {
             Hibernate.initialize(meet.getRegisteredUsers());
             return meet;
         });
-    }
-
-    public Iterable<Meet> getAllMeets() {
-        log.info("Получение списка всех встреч");
-        return meetRepository.findAll();
     }
 
     @Transactional
