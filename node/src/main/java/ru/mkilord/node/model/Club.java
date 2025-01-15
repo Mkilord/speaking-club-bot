@@ -40,4 +40,7 @@ public class Club {
     @ToString.Exclude
     @OneToMany(mappedBy = "club", cascade = CascadeType.ALL, orphanRemoval = true)
     Set<Meet> meets;
+
+    @Column(nullable = false)
+    double averageRating;
 }

@@ -49,6 +49,24 @@ public class ClubService {
     }
 
     @Transactional
+    public void addRating(Long clubId, int rating) {
+        var clubOpt = getClubById(clubId);
+        if (clubOpt.isEmpty()) return;
+
+        var club = clubOpt.get();
+
+        if (rating < 1 || rating > 10) {
+            throw new IllegalArgumentException("Rating must be between 1 and 10");
+        }
+
+        var currentAverage = club.getAverageRating();
+        var updatedAverage = (currentAverage + rating) / 2;
+
+        club.setAverageRating(updatedAverage);
+        clubRepository.save(club);
+    }
+
+    @Transactional
     public void addSubscriber(Long clubId, User user) {
         var clubOpt = getClubById(clubId);
         if (clubOpt.isEmpty()) {

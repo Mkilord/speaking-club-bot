@@ -28,6 +28,10 @@ public class ContextCollection {
         contextMap.remove(context.getChatId());
     }
 
+    public void remove(Long chatId) {
+        contextMap.remove(chatId);
+    }
+
     public Optional<MessageContext> getContext(long key) {
         return Optional.ofNullable(contextMap.get(key));
     }

@@ -8,13 +8,18 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import ru.mkilord.node.command.*;
+import ru.mkilord.node.command.Command;
+import ru.mkilord.node.command.CommandCatalog;
+import ru.mkilord.node.command.CommandHandler;
+import ru.mkilord.node.command.Reply;
 import ru.mkilord.node.command.context.ContextFlow;
 import ru.mkilord.node.command.context.MessageContext;
 import ru.mkilord.node.command.menu.Item;
 import ru.mkilord.node.command.menu.Menu;
+import ru.mkilord.node.config.BotConfig;
 import ru.mkilord.node.model.Club;
 import ru.mkilord.node.model.Meet;
+import ru.mkilord.node.model.User;
 import ru.mkilord.node.model.enums.MeetStatus;
 import ru.mkilord.node.model.enums.Role;
 import ru.mkilord.node.service.ProducerService;
@@ -29,7 +34,10 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
@@ -46,6 +54,7 @@ import static ru.mkilord.node.util.MeetFormatter.formatMeetWithOutStatus;
 public class BotController implements CommandCatalog {
 
     CommandHandler commandHandler;
+    BotConfig botConfig;
 
     ProducerService producerService;
     ContextFlow contextFlow;
@@ -105,13 +114,6 @@ public class BotController implements CommandCatalog {
      * /create_club - позволяет создать клуб.
      *  */
 
-    /*Сделать отзывы
-     * Сделать сотрудников
-     * Обработать на валидации превышение размера.
-     * Добавить свойство лимита контекстов.
-     * Сделать клубы:
-     *   Изменить клуб*/
-
 
     private void addCommands(List<Command> list, Command... commands) {
         list.addAll(List.of(commands));
@@ -125,6 +127,10 @@ public class BotController implements CommandCatalog {
                         context -> send(context, "Пожалуйста, введи своё ФИО через пробел. ✍️"))
                 .action(context -> {
                     var msg = context.getText();
+                    if (msg.length() > 250) {
+                        send(context, "❗ ФИО не может быть длиннее 250 символов!");
+                        return REPEAT;
+                    }
                     if (msg.isBlank() || !msg.contains(" ")) {
                         send(context, "❗ Введите ФИО (имя, фамилию и отчество) через пробел.");
                         return REPEAT;
@@ -150,6 +156,10 @@ public class BotController implements CommandCatalog {
 
                     if (email == null || !pattern.matcher(email).matches()) {
                         send(context, "❗ Неверный формат email! Пожалуйста, введите корректный email.");
+                        return REPEAT;
+                    }
+                    if (email.length() > 250) {
+                        send(context, "❗ Email не может быть длиннее 250 символов!");
                         return REPEAT;
                     }
                     context.put("email", email);
@@ -187,6 +197,10 @@ public class BotController implements CommandCatalog {
                         send(context, "❗ Введите имя клуба длиннее 2х символов!");
                         return REPEAT;
                     }
+                    if (msg.length() > 50) {
+                        send(context, "❗ Имя не может быть длиннее 50 символов!");
+                        return REPEAT;
+                    }
                     context.put("clubName", msg);
                     return NEXT;
                 });
@@ -196,6 +210,10 @@ public class BotController implements CommandCatalog {
                     var msg = context.getText();
                     if (msg.isBlank() || msg.length() < 20) {
                         send(context, "❗ Введите Описание клуба 20ти символов!");
+                        return REPEAT;
+                    }
+                    if (msg.length() > 250) {
+                        send(context, "❗ Описание должно быть не длиннее 250 символов!");
                         return REPEAT;
                     }
                     context.put("clubDescription", msg);
@@ -275,8 +293,11 @@ public class BotController implements CommandCatalog {
                     user.setMiddleName(context.getValue("middleName"));
                     user.setEmail(context.getValue("email"));
                     user.setPhone(context.getValue("phone"));
-                    user.setRole(Role.MEMBER);
-                    context.setUser(user);
+
+                    if (Long.parseLong(botConfig.getAdminId()) == context.getUser().getTelegramId())
+                        user.setRole(Role.MODERATOR);
+                    else
+                        user.setRole(Role.MEMBER);
                     userService.update(user);
                     send(context, """
                             ✅ Данные записаны!
@@ -335,6 +356,7 @@ public class BotController implements CommandCatalog {
                     var user = context.getUser();
                     send(context, """
                             Ваши данные:
+                            
                             📛 ФИО: %s %s %s
                             📱 Телефон: %s
                             📧 Email: %s""".formatted(user.getFirstName(), user.getLastName(),
@@ -354,7 +376,6 @@ public class BotController implements CommandCatalog {
                     user.setMiddleName(context.getValue("middleName"));
                     user.setEmail(context.getValue("email"));
                     user.setPhone(context.getValue("phone"));
-                    context.setUser(user);
                     userService.update(user);
                     send(context, "✅ Данные записаны!");
                 }).build();
@@ -389,7 +410,7 @@ public class BotController implements CommandCatalog {
          */
 
         var clubsCommand = Command.create("/clubs")
-                .access(Role.MEMBER)
+                .access(Role.MEMBER_AND_EMPLOYEES)
                 .help("Записаться на встречу, получить информацию о клубе.")
                 .input(inputSelectClub)
                 .input(Reply.builder().preview(context -> {
@@ -427,7 +448,8 @@ public class BotController implements CommandCatalog {
                             items.add(new Item("О клубе", _ -> {
                                 send(context, "ℹ️ Информация о клубе:\n\n"
                                         + club.getName() + "\n\n"
-                                        + club.getDescription() +
+                                        + club.getDescription() + "\n"
+                                        + "Рейтинг: " + club.getAverageRating() +
                                         "\n\n\uD83D\uDCD8 Используй /clubs чтобы выбрать клуб и записаться на встречу.");
                                 return TERMINATE;
                             }));
@@ -450,7 +472,7 @@ public class BotController implements CommandCatalog {
 
         var meetsCommand = Command.create("/meets")
                 .help("Позволяет просматривать запланированные встречи.")
-                .access(Role.MEMBER)
+                .access(Role.MEMBER_AND_EMPLOYEES)
                 .input(Reply.builder().preview(context -> {
                             var meets = userService.getRegisteredMeetsWithStatus(context.getUser().getTelegramId(), MeetStatus.PUBLISHED);
                             if (meets.isEmpty()) {
@@ -496,21 +518,16 @@ public class BotController implements CommandCatalog {
                 .build();
 
         var feedback = Command.create("/feedback")
-                .help("Чтобы пройти опрос.")
-                .access(Role.MEMBER)
-                .action(context -> {
-                    send(context, "Поиск опросов!");
-                    //Запросить информацию об опросах.
-                    var isOk = new Random().nextBoolean();
-                    if (isOk) return NEXT;
-                    send(context, "Доступные опросы не найдены!");
-                    return TERMINATE;
-                })
+                .help("Чтобы оставить оценку клубу.")
+                .access(Role.MEMBER_AND_EMPLOYEES)
+                .input(inputSelectClub)
                 .input(inputRate)
-                .post(context -> {
-                    var rate = context.getValue("rate");
-                    send(context, "Оценка записана: " + rate);
-                }).build();
+                .input(Reply.builder().preview(context -> {
+                    var club = context.getValue("club", Club.class);
+                    var rate = Integer.parseInt(context.getValue("rate"));
+                    clubService.addRating(club.getId(), rate);
+                    send(context, "Оценка записана!");
+                })).build();
 
         /* ORGANIZER - Это тот кто создаёт встречи. Закреплён за клубом.
          * /control_meeting - отображает список клубов
@@ -531,6 +548,10 @@ public class BotController implements CommandCatalog {
                     var msg = context.getText();
                     if (msg.isBlank() || msg.length() < 20) {
                         send(context, "❗ Введите тему встречи от 20-ти символов!");
+                        return REPEAT;
+                    }
+                    if (msg.length() > 250) {
+                        send(context, "❗ Название встречи не может быть длиннее 250 символов!");
                         return REPEAT;
                     }
                     context.put("meetName", msg);
@@ -604,7 +625,7 @@ public class BotController implements CommandCatalog {
                 .build();
 
         var createMeeting = Command.create("/create_meeting")
-                .access(Role.MEMBER)
+                .access(Role.EMPLOYEES)
                 .help("Позволяет создавать встречи для клубов.")
                 .input(inputSelectClub)
                 .input(Reply.builder()
@@ -646,7 +667,7 @@ public class BotController implements CommandCatalog {
 
         var controlMeeting = Command.create("/control_meeting")
                 .help("Позволяет управлять встречами ")
-                .access(Role.MEMBER)
+                .access(Role.EMPLOYEES)
                 .input(inputSelectClub)
                 .input(Reply.builder().preview(context -> {
                     var club = context.getValue("club", Club.class);
@@ -746,7 +767,8 @@ public class BotController implements CommandCatalog {
          *          В*: Удалить.
          */
 
-        var createClub = Command.create("/create_club").access(Role.MEMBER)
+        var createClub = Command.create("/create_club")
+                .access(Role.MODERATOR)
                 .input(inputClubName, inputClubDescription)
                 .help("Позволяет создать новый клуб.")
                 .input(Reply.builder().preview(context -> {
@@ -768,7 +790,7 @@ public class BotController implements CommandCatalog {
 
         var controlClubs = Command.create("/control_clubs")
                 .help("Позволяет управлять клубами")
-                .access(Role.MEMBER)
+                .access(Role.MODERATOR)
                 .input(inputSelectClub)
                 .input(Reply.builder().preview(context -> {
                             var club = context.getValue("club", Club.class);
@@ -798,12 +820,125 @@ public class BotController implements CommandCatalog {
                             return NEXT;
                         })
                         .action(context -> context.getMenu().onClick(context)))
+                .input(inputClubName, inputClubDescription)
+                .input(Reply.builder().preview(context -> {
+                    var club = context.getValue("club", Club.class);
+                    var clubName = context.getValue("clubName");
+                    var clubDescription = context.getValue("clubDescription");
+                    club.setName(clubName);
+                    club.setDescription(clubDescription);
+                    clubService.update(club.getId(), club);
+                    send(context, "Клуб изменён!");
+                })).build();
+
+        var inputEmployeesNickname = Reply.builder()
+                .preview((Consumer<MessageContext>) context ->
+                        send(context, "Введите имя пользователя:"))
+                .action(context -> {
+                    var msg = context.getText();
+                    if (msg.isBlank() || msg.length() < 5) {
+                        send(context, "❗ Введите тему встречи от 5-ти символов!");
+                        return REPEAT;
+                    }
+                    if (msg.length() > 250) {
+                        send(context, "❗ Имя пользователя не может длиннее 250 символов!");
+                        return REPEAT;
+                    }
+                    context.put("userNickname", msg);
+                    return NEXT;
+                });
+
+        var create_employ = Command.create("/create_employ")
+                .access(Role.MODERATOR)
+                .help("Позволяет создавать сотрудников")
+                .input(inputEmployeesNickname)
+                .input(Reply.builder().preview(context -> {
+                    var userNickname = context.getValue("userNickname");
+                    var userOpt = userService.getUserByNickname(userNickname);
+                    var moderator = context.getUser();
+                    if (userNickname.equals(moderator.getUsername())) {
+                        send(context, "Вы уже являетесь сотрудником.");
+                        return TERMINATE;
+                    }
+                    userOpt.ifPresentOrElse(user -> {
+                                userService.grantRole(user.getTelegramId(), Role.ORGANIZER);
+                                send(context, "Пользователь " + userNickname + " повышен до сотрудника!");
+                                contextFlow.disposeContext(user.getChatId());
+                            },
+                            () -> send(context, "Пользователь c никнеймом: " + userNickname + " не найден!"));
+                    return TERMINATE;
+                })).build();
+
+        var control_employees = Command.create("/control_employees")
+                .access(Role.MODERATOR)
+                .help("Позволяет управлять сотрудниками")
+                .input(Reply.builder().preview(context -> {
+                    var users = userService.getUsersByRole(Role.ORGANIZER);
+
+                    var items = users.stream()
+                            .map(user -> new Item(String.valueOf(user.getTelegramId()), user.getFirstName() + " "
+                                    + user.getLastName() + " " + user.getMiddleName()))
+                            .toList();
+                    if (items.isEmpty()) {
+                        send(context, "У вас пока нет сотрудников!");
+                        return TERMINATE;
+                    }
+
+                    var menu = Menu.builder()
+                            .items(items)
+                            .build();
+                    context.put("users", users);
+                    send(context, "Выберите сотрудника:", menu.showMenu(context));
+                    return NEXT;
+                }))
+                .input(Reply.builder().preview(context -> {
+                            if (Menu.isInvalidInput(context)) {
+                                return INVALID;
+                            }
+                            var users = context.getValues("users", User.class);
+                            var userId = Long.parseLong(context.getText());
+                            var userOpt = users.stream()
+                                    .filter(user -> user.getTelegramId().equals(userId))
+                                    .findFirst();
+                            if (userOpt.isEmpty()) return TERMINATE;
+                            var user = userOpt.get();
+                            var items = new ArrayList<Item>();
+                            items.add(new Item("Профиль", _ -> {
+                                send(context, """
+                                        Данные сотрудника:
+                                        
+                                        📛 ФИО: %s %s %s
+                                        📱 Телефон: %s
+                                        📧 Email: %s"""
+                                        .formatted(user.getFirstName(), user.getLastName(), user.getMiddleName(),
+                                                user.getPhone(), user.getEmail()));
+                                return TERMINATE;
+                            }));
+                            items.add(new Item("Понизить", _ -> {
+                                userService.grantRole(user.getTelegramId(), Role.MEMBER);
+                                contextFlow.disposeContext(user.getChatId());
+                                send(context, """
+                                        Сотрудник понижен!\
+                                        
+                                        
+                                        \uD83D\uDCD8 Используй /control_employees чтобы управлять сотрудниками.""");
+                                return TERMINATE;
+                            }));
+                            var menu = Menu.builder()
+                                    .items(items)
+                                    .build();
+                            send(context, "Выберите действие для сотрудника:\n\n" + user.getFirstName() + " " +
+                                    user.getMiddleName() + " " + user.getLastName(), menu.showMenu(context));
+                            return NEXT;
+                        })
+                        .action(context -> context.getMenu().onClick(context)))
                 .build();
 
         addCommands(commands, startCommand, registerCommand);
         addCommands(commands, clubsCommand, meetsCommand);
         addCommands(commands, createMeeting, controlMeeting);
         addCommands(commands, createClub, controlClubs);
+        addCommands(commands, create_employ, control_employees);
         addCommands(commands, feedback);
         addCommands(commands, profile, editProfile, deleteUserCommand);
         addCommands(commands, help);
