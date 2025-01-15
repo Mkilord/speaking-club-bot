@@ -6,7 +6,6 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import ru.mkilord.node.config.BotConfig;
 import ru.mkilord.node.model.User;
-import ru.mkilord.node.model.enums.Role;
 import ru.mkilord.node.service.impl.UserService;
 import ru.mkilord.node.util.UpdateUtils;
 
@@ -19,14 +18,15 @@ import static ru.mkilord.node.util.UpdateUtils.getUserIdFromUpdate;
 @AllArgsConstructor
 public class ContextFlow {
 
-    BotConfig botConfig;
-
     UserService userService;
 
     final ContextCollection contextCollection = new ContextCollection(200);
 
     public void disposeContext(MessageContext context) {
         contextCollection.remove(context);
+    }
+    public void disposeContext(Long chatId) {
+        contextCollection.remove(chatId);
     }
 
     public MessageContext lookupOrCreateContext(Update update) {
@@ -47,18 +47,8 @@ public class ContextFlow {
         return context;
     }
 
-    private void setRoleIfModerator(User user, long telegramId) {
-        if (Long.parseLong(botConfig.getAdminId()) == telegramId)
-            user.setRole(Role.MODERATOR);
-        else
-            user.setRole(Role.USER);
-
-    }
-
     private MessageContext createContextForNewUser(Update update, long telegramId, long chatId) {
         var newUser = new User();
-
-        setRoleIfModerator(newUser, telegramId);
 
         newUser.setTelegramId(telegramId);
         newUser.setChatId(chatId);

@@ -17,4 +17,5 @@ public enum Role {
 
     public static final Role[] MEMBER_AND_EMPLOYEES = new Role[]{MEMBER, ORGANIZER, MODERATOR};
 
+    public static final Role[] TEST = MEMBER_AND_EMPLOYEES;
 }

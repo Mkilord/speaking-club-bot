@@ -35,10 +35,10 @@ public class User {
 
     String middleName;
 
-    @Column(unique = true)
+    @Column()
     String email;
 
-    @Column(unique = true)
+    @Column()
     String phone;
 
     @ManyToMany(mappedBy = "registeredUsers")
@@ -46,5 +46,6 @@ public class User {
     Set<Meet> meets;
 
     @ManyToMany(mappedBy = "subscribers")
+    @ToString.Exclude
     Set<Club> clubs;
 }

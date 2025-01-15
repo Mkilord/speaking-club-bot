@@ -22,6 +22,7 @@ spring:
     show-sql: true
 bot:
   context_limit: ${CONTEXT_LIMIT:20000}
+  #488063845
   manager_id: ${MANAGER_ID:488063845}
 
 server:

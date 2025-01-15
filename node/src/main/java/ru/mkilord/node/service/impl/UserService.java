@@ -34,6 +34,14 @@ public class UserService {
                 .anyMatch(club -> clubId.equals(club.getId()))).orElse(false);
     }
 
+    public Optional<User> getUserByNickname(String nickname) {
+        return userRepository.findUserByUsername(nickname);
+    }
+
+    public List<User> getUsersByRole(Role role) {
+        return userRepository.findUsersByRole(role);
+    }
+
     @Transactional
     public List<Meet> getRegisteredMeetsWithStatus(Long userId, MeetStatus status) {
         var userOpt = getUserById(userId);
