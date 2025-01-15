@@ -1,11 +1,11 @@
-package ru.mkilord.node.command.menu;
+package ru.mkilord.node.common.menu;
 
 import lombok.AllArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
-import ru.mkilord.node.command.context.MessageContext;
-import ru.mkilord.node.command.Step;
+import ru.mkilord.node.common.context.MessageContext;
+import ru.mkilord.node.common.Step;
 
 import java.util.ArrayList;
 import java.util.Arrays;

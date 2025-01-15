@@ -1,12 +1,12 @@
-package ru.mkilord.node.command;
+package ru.mkilord.node.common;
 
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import ru.mkilord.node.command.context.ContextFlow;
-import ru.mkilord.node.command.context.MessageContext;
+import ru.mkilord.node.common.context.ContextFlow;
+import ru.mkilord.node.common.context.MessageContext;
 
 import java.util.List;
 import java.util.Map;

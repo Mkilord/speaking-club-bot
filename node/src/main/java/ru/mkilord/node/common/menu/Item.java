@@ -1,9 +1,9 @@
-package ru.mkilord.node.command.menu;
+package ru.mkilord.node.common.menu;
 
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
-import ru.mkilord.node.command.context.MessageContext;
-import ru.mkilord.node.command.Step;
+import ru.mkilord.node.common.context.MessageContext;
+import ru.mkilord.node.common.Step;
 
 import java.util.Optional;
 import java.util.UUID;

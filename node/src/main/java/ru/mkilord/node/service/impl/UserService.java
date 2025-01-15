@@ -24,10 +24,6 @@ public class UserService {
 
     UserRepository userRepository;
 
-    public List<User> getAll() {
-        return userRepository.findAll();
-    }
-
     @Transactional
     public boolean isUserSubscribeToClub(Long userId, Long clubId) {
         return getUserById(userId).map(user -> user.getClubs().stream()
@@ -75,8 +71,8 @@ public class UserService {
     }
 
     @Transactional
-    public Optional<User> grantRole(Long userId, Role role) {
-        return getUserById(userId).map(user -> {
+    public void grantRole(Long userId, Role role) {
+        getUserById(userId).map(user -> {
             user.setRole(role);
             return user;
         });

@@ -1,10 +1,9 @@
-package ru.mkilord.node.command.context;
+package ru.mkilord.node.common.context;
 
 import lombok.AllArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import ru.mkilord.node.config.BotConfig;
 import ru.mkilord.node.model.User;
 import ru.mkilord.node.service.impl.UserService;
 import ru.mkilord.node.util.UpdateUtils;

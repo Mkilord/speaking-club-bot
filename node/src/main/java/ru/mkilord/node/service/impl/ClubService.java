@@ -10,7 +10,6 @@ import ru.mkilord.node.model.Club;
 import ru.mkilord.node.model.User;
 import ru.mkilord.node.repository.ClubRepository;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -33,9 +32,9 @@ public class ClubService {
         return clubRepository.findById(id);
     }
 
-    public Club save(Club club) {
+    public void save(Club club) {
         log.info("Сохранение клуба: {}", club.getName());
-        return clubRepository.save(club);
+        clubRepository.save(club);
     }
 
     @Transactional
@@ -94,13 +93,6 @@ public class ClubService {
         } else {
             log.warn("Пользователь {} не подписан на клуб {}", user.getUsername(), club.getName());
         }
-    }
-
-    public List<User> getSubscribers(Long clubId) {
-        return getClubById(clubId).map(club -> {
-            log.info("Получение списка подписчиков клуба {}", club.getName());
-            return new ArrayList<>(club.getSubscribers());
-        }).orElse(new ArrayList<>());
     }
 
     @Transactional
