@@ -1,10 +1,10 @@
-package ru.mkilord.node.command;
+package ru.mkilord.node.common;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import ru.mkilord.node.command.context.MessageContext;
+import ru.mkilord.node.common.context.MessageContext;
 import ru.mkilord.node.model.enums.Role;
 
 import java.util.*;

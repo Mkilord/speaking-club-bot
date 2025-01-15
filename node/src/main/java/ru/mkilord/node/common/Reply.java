@@ -1,10 +1,10 @@
-package ru.mkilord.node.command;
+package ru.mkilord.node.common;
 
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.FieldDefaults;
-import ru.mkilord.node.command.context.MessageContext;
+import ru.mkilord.node.common.context.MessageContext;
 
 import java.util.Optional;
 import java.util.function.Consumer;

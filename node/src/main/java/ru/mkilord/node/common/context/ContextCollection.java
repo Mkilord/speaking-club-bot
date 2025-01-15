@@ -1,4 +1,4 @@
-package ru.mkilord.node.command.context;
+package ru.mkilord.node.common.context;
 
 import lombok.experimental.FieldDefaults;
 

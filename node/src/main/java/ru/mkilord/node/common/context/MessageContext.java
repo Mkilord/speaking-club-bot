@@ -1,10 +1,10 @@
-package ru.mkilord.node.command.context;
+package ru.mkilord.node.common.context;
 
 import lombok.Builder;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import ru.mkilord.node.command.menu.Menu;
+import ru.mkilord.node.common.menu.Menu;
 import ru.mkilord.node.model.User;
 
 import java.util.*;
