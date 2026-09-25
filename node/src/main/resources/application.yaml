@@ -1,29 +1,50 @@
 spring:
   application:
     name: node
-
-  rabbitmq:
-    port: ${RABBIT_PORT:5673}
-    host: ${RABBIT_HOST:localhost}
-    username: ${RABBIT_USERNAME:lord}
-    password: ${RABBIT_PASSWORD:admin}
-    queues:
-      text-message-update: ${RABBIT_TEXT_MESSAGE_UPDATE_QUEUE:message_update}
-      answer-message: ${RABBIT_ANSWER_MESSAGE_QUEUE:message_answer}
-
   datasource:
-    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5433/postgres}
-    username: ${POSTGRES_USER:admin}
-    password: ${POSTGRES_PASSWORD:REMOVED_PASSWORD}
-
+    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/speaking_club}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:postgres}
   jpa:
+    open-in-view: false
     hibernate:
-      ddl-auto: update
-    show-sql: true
-bot:
-  context_limit: ${CONTEXT_LIMIT:20000}
-  #488063845
-  manager_id: ${MANAGER_ID:488063845}
+      ddl-auto: validate
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  rabbitmq:
+    host: ${RABBIT_HOST:localhost}
+    port: ${RABBIT_PORT:5672}
+    username: ${RABBIT_USERNAME:guest}
+    password: ${RABBIT_PASSWORD:guest}
+    listener:
+      simple:
+        auto-startup: ${NODE_LISTEN:true}
+        concurrency: ${NODE_CONSUMERS:2}
+        max-concurrency: ${NODE_MAX_CONSUMERS:4}
+        prefetch: 10
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 500ms
+          multiplier: 2
 
 server:
-  port: ${NODE_PORT:8085}
+  port: ${NODE_PORT:8082}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+app:
+  bot:
+    # Comma separated Telegram ids that become moderators on /register
+    moderator-ids: ${MODERATOR_IDS:}
+    dialog-ttl: ${DIALOG_TTL:24h}
+    zone: ${BOT_TIME_ZONE:Europe/Moscow}
