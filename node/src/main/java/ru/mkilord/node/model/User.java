@@ -1,51 +1,61 @@
 package ru.mkilord.node.model;
 
-import jakarta.persistence.*;
-import lombok.*;
-import lombok.experimental.FieldDefaults;
-import ru.mkilord.node.model.enums.Role;
-
-import java.util.Set;
-
-import static lombok.AccessLevel.PRIVATE;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 
 @Entity
 @Table(name = "users")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
-@AllArgsConstructor
+@ToString(onlyExplicitlyIncluded = true)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-@FieldDefaults(level = PRIVATE)
 public class User {
 
     @Id
+    @ToString.Include
     @EqualsAndHashCode.Include
-    Long telegramId;
+    private Long telegramId;
 
-    Long chatId;
+    @Column(nullable = false)
+    private Long chatId;
 
-    String username;
+    /** Telegram username without "@". Optional in Telegram, so it can be null. */
+    @ToString.Include
+    private String username;
 
     @Enumerated(EnumType.STRING)
-    Role role = Role.USER;
+    @Column(nullable = false)
+    private Role role = Role.USER;
 
-    String firstName;
+    private String firstName;
+    private String lastName;
+    private String middleName;
+    private String email;
+    private String phone;
 
-    String lastName;
+    public User(Long telegramId, Long chatId, String username) {
+        this.telegramId = telegramId;
+        this.chatId = chatId;
+        this.username = username;
+    }
 
-    String middleName;
+    public String getFullName() {
+        return java.util.stream.Stream.of(lastName, firstName, middleName)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.joining(" "));
+    }
 
-    @Column()
-    String email;
-
-    @Column()
-    String phone;
-
-    @ManyToMany(mappedBy = "registeredUsers")
-    @ToString.Exclude
-    Set<Meet> meets;
-
-    @ManyToMany(mappedBy = "subscribers")
-    @ToString.Exclude
-    Set<Club> clubs;
+    public boolean hasRole(java.util.Set<Role> roles) {
+        return roles.contains(role);
+    }
 }

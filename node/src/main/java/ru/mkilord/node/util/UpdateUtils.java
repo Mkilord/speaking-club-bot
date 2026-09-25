@@ -1,27 +1,22 @@
 package ru.mkilord.node.util;
 
-
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
 
-public class UpdateUtils {
-    public static Long getUserIdFromUpdate(Update update) {
-        return getUserFromUpdate(update).getId();
+public final class UpdateUtils {
+
+    private UpdateUtils() {
     }
 
-    public static String getUsernameFromUpdate(Update update) {
-        return getUserFromUpdate(update).getUserName();
+    public static long chatId(Update update) {
+        return update.hasCallbackQuery()
+                ? update.getCallbackQuery().getMessage().getChatId()
+                : update.getMessage().getChatId();
     }
 
-    public static Long getChatIdFromUpdate(Update update) {
-        if (update.hasCallbackQuery())
-            return update.getCallbackQuery().getMessage().getChatId();
-        return update.getMessage().getChatId();
-    }
-
-    public static User getUserFromUpdate(Update update) {
-        if (update.hasCallbackQuery())
-            return update.getCallbackQuery().getFrom();
-        return update.getMessage().getFrom();
+    public static User sender(Update update) {
+        return update.hasCallbackQuery()
+                ? update.getCallbackQuery().getFrom()
+                : update.getMessage().getFrom();
     }
 }

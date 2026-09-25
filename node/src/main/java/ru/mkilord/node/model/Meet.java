@@ -1,50 +1,71 @@
 package ru.mkilord.node.model;
 
-import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
-import lombok.*;
-import lombok.experimental.FieldDefaults;
-import ru.mkilord.node.model.enums.MeetStatus;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.HashSet;
 import java.util.Set;
 
-import static lombok.AccessLevel.PRIVATE;
-
 @Entity
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = PRIVATE)
-@Builder
+@ToString(onlyExplicitlyIncluded = true)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Meet {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @ToString.Include
     @EqualsAndHashCode.Include
-    long id;
+    private Long id;
 
-    @NotBlank
-    String name;
+    @Column(nullable = false)
+    @ToString.Include
+    private String name;
 
-    LocalDate date;
-    LocalTime time;
+    @Column(name = "meet_date", nullable = false)
+    private LocalDate date;
+
+    @Column(name = "meet_time", nullable = false)
+    private LocalTime time;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private MeetStatus status = MeetStatus.HIDDEN;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "club_id")
+    private Club club;
 
     @ManyToMany
     @JoinTable(
-            name = "meet_user",
+            name = "meet_participant",
             joinColumns = @JoinColumn(name = "meet_id"),
-            inverseJoinColumns = @JoinColumn(name = "user_id")
-    )
-    @ToString.Exclude
-    Set<User> registeredUsers;
+            inverseJoinColumns = @JoinColumn(name = "user_id"))
+    private Set<User> participants = new HashSet<>();
 
-    @ManyToOne
-    @JoinColumn(name = "club_id")
-    @ToString.Exclude
-    Club club;
-
-    @Enumerated(EnumType.STRING)
-    MeetStatus status;
+    public Meet(Club club, String name, LocalDate date, LocalTime time) {
+        this.club = club;
+        this.name = name;
+        this.date = date;
+        this.time = time;
+    }
 }
